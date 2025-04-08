@@ -7,6 +7,7 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import * as monaco from 'monaco-editor';
 import { GeneratedCode } from '../../models/generated-code.model';
+import { MonacoLoaderService } from '../../services/monaco-loader.service';
 
 @Component({
   selector: 'app-code-viewer',
@@ -37,11 +38,15 @@ export class CodeViewerComponent implements AfterViewInit, OnChanges {
   private defaultHtmlValue = '<!-- HTML code will appear here -->';
   private defaultScssValue = '/* SCSS code will appear here */';
   
-  constructor(private snackBar: MatSnackBar) {}
+  constructor(private snackBar: MatSnackBar, private monacoLoader: MonacoLoaderService) {}
   
   ngAfterViewInit(): void {
-    // Initialize Monaco editors with default values
-    this.initMonacoEditors();
+    // Initialize Monaco editors after ensuring Monaco is loaded
+    this.monacoLoader.loadMonaco().then(() => {
+      this.initMonacoEditors();
+    }).catch(error => {
+      console.error('Failed to load Monaco editor', error);
+    });
   }
   
   ngOnChanges(changes: SimpleChanges): void {
