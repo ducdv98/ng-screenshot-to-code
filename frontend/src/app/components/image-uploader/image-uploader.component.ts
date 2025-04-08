@@ -51,6 +51,20 @@ export class ImageUploaderComponent {
     }).join('');
   }
   
+  /**
+   * Resets the uploader state, clearing the current image and extracted colors
+   */
+  reset(): void {
+    this.currentFile = null;
+    this.previewUrl = null;
+    this.selectedFileName = '';
+    this.dominantColor = null;
+    this.colorPalette = [];
+    this.isUploading = false;
+    this.uploadProgress = 0;
+    this.isDragging = false;
+  }
+  
   onFileSelected(event: Event): void {
     const input = event.target as HTMLInputElement;
     if (!input.files?.length) return;

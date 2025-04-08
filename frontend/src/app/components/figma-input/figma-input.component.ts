@@ -44,11 +44,13 @@ export class FigmaInputComponent {
       access_token: this.accessToken
     };
     
-    // Simulate a delay for UI feedback (remove in production)
+    // Emit the event and clear the form
+    this.figmaSubmitted.emit(figmaInput);
+    
+    // Reset submission state but keep form values for potential resubmission
     setTimeout(() => {
-      this.figmaSubmitted.emit(figmaInput);
       this.isSubmitting = false;
-    }, 1000);
+    }, 500);
   }
   
   clearForm(): void {

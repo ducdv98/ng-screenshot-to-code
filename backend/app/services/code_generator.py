@@ -94,7 +94,8 @@ class CodeGenerator:
             component_ts=result.get("component_ts", ""),
             component_html=component_html,
             component_scss=result.get("component_scss", ""),
-            component_name=result.get("component_name", "figma-component")
+            component_name=result.get("component_name", "figma-component"),
+            warnings=warnings if warnings else None
         )
     
     def _extract_figma_description(self, figma_data: Dict[str, Any], component_definitions: Dict[str, Any] = None, warnings: List[str] = None) -> str:

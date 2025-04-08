@@ -1,4 +1,5 @@
 from pydantic import BaseModel, Field
+from typing import List, Optional
 
 class GeneratedCode(BaseModel):
     """
@@ -8,6 +9,7 @@ class GeneratedCode(BaseModel):
     component_html: str = Field(..., description="HTML template for the Angular component")
     component_scss: str = Field(..., description="SCSS styles for the Angular component")
     component_name: str = Field(..., description="Suggested name for the component")
+    warnings: Optional[List[str]] = Field(default=None, description="Warnings related to the generated code")
     
     class Config:
         schema_extra = {
@@ -15,6 +17,7 @@ class GeneratedCode(BaseModel):
                 "component_ts": "import { Component } from '@angular/core';\n\n@Component({\n  selector: 'app-button',\n  templateUrl: './button.component.html',\n  styleUrls: ['./button.component.scss']\n})\nexport class ButtonComponent {}\n",
                 "component_html": "<button mat-raised-button color=\"primary\" class=\"px-4 py-2 rounded-lg\">\n  Click Me\n</button>\n",
                 "component_scss": "@tailwind base;\n@tailwind components;\n@tailwind utilities;\n",
-                "component_name": "button"
+                "component_name": "button",
+                "warnings": ["Component instance 'Button' references undefined component"]
             }
         } 

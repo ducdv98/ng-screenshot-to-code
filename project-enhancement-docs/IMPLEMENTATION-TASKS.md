@@ -148,14 +148,16 @@ This document outlines all tasks required to implement the enhancements for the 
   - Updated AI prompt to include component metadata in HTML
   - Implemented warning collection for undefined components
 
-#### 3.E5 Improved Mapping Error Feedback 🔄
-- **Location**: `backend/app/services/code_generator.py`
-- **Status**: Partially Implemented
-- **Progress**: 
+#### 3.E5 Improved Mapping Error Feedback ✅
+- **Location**: `backend/app/services/code_generator.py`, `frontend/src/app/pages/generator-page/`
+- **Status**: Completed
+- **Implementation**:
   - Warning collection during parsing implemented
   - HTML comment injection for warnings implemented
-  - Missing: Frontend display of mapping warnings
-  - Missing: UI clearing between generations
+  - Added warnings field to GeneratedCode model in both frontend and backend
+  - Created visual warning display in UI with amber background and icon
+  - Implemented UI clearing between generations with a reset button
+  - Added component reset functionality for both image uploader and Figma input
 
 ## Additional Enhancements
 
@@ -172,7 +174,9 @@ This document outlines all tasks required to implement the enhancements for the 
 - **Progress**:
   - Basic layout and responsive design implemented
   - Input controls and feedback mechanisms added
-  - Pending: Additional UI refinements and accessibility improvements
+  - Added warning display system for Figma mapping errors
+  - Implemented reset functionality for clearing inputs and generated code
+  - Pending: Additional accessibility improvements
 
 ## Documentation Updates 🔄
 - **Status**: Partially Completed
@@ -181,12 +185,16 @@ This document outlines all tasks required to implement the enhancements for the 
   - Component documentation started
   - Pending: Comprehensive user guide and architecture documentation
 
-## Phase 4: Polish, Testing & Advanced Features ⏱️
-- **Status**: Not Started
+## Phase 4: Polish, Testing & Advanced Features 🔄
+- **Status**: In Progress
+- **Completed**:
+  - Added warning display for Figma mapping errors
+  - Implemented UI state clearing between generations
+
 - **Next Steps**:
-  - Implement comprehensive error handling across application
+  - Implement comprehensive accessibility improvements (ARIA labels, keyboard navigation)
   - Add end-to-end testing framework
-  - Implement performance optimizations
+  - Implement performance optimizations for large Figma files
   - Add more advanced features like component editing
 
 ## Development Infrastructure

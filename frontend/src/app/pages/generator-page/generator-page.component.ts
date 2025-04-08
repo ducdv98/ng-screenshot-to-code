@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { Component, ViewChild, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatTabsModule } from '@angular/material/tabs';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
@@ -47,13 +47,39 @@ export class GeneratorPageComponent {
   private apiService = inject(ApiService);
   private snackBar = inject(MatSnackBar);
   
+  @ViewChild(ImageUploaderComponent) private imageUploader?: ImageUploaderComponent;
+  @ViewChild(FigmaInputComponent) private figmaInput?: FigmaInputComponent;
+  
   isLoading = false;
   generatedCode: GeneratedCode | null = null;
   error: string | null = null;
   
-  onImageSelected(data: ImageUploadData): void {
-    this.isLoading = true;
+  /**
+   * Clears the UI state before starting a new generation
+   */
+  private clearState(): void {
     this.error = null;
+    this.generatedCode = null;
+  }
+  
+  /**
+   * Completely resets the UI state, including input components
+   */
+  resetUI(): void {
+    this.clearState();
+    // Reset image uploader if exists
+    if (this.imageUploader) {
+      this.imageUploader.reset();
+    }
+    // Reset Figma input if exists
+    if (this.figmaInput) {
+      this.figmaInput.clearForm();
+    }
+  }
+  
+  onImageSelected(data: ImageUploadData): void {
+    this.clearState();
+    this.isLoading = true;
     
     // Extract file and color hints from the uploaded data
     const { file, colors } = data;
@@ -83,8 +109,8 @@ export class GeneratorPageComponent {
   }
   
   onFigmaSubmitted(figmaInput: FigmaInput): void {
+    this.clearState();
     this.isLoading = true;
-    this.error = null;
     
     this.apiService.generateCodeFromFigma(figmaInput).subscribe({
       next: (response) => {
