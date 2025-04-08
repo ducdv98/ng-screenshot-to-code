@@ -20,7 +20,7 @@
       <!-- Preview area -->
       @if (previewUrl) {
         <div class="w-full max-h-80 overflow-hidden rounded-lg mb-4">
-          <img [src]="previewUrl" class="w-full object-contain" alt="Preview">
+          <img #previewImage [src]="previewUrl" class="w-full object-contain" alt="Preview">
         </div>
       } @else {
         <mat-icon class="text-6xl text-gray-400">image</mat-icon>

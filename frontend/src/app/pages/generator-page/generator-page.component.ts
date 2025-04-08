@@ -15,6 +15,14 @@ import { ApiService } from '../../services/api.service';
 import { GeneratedCode } from '../../models/generated-code.model';
 import { FigmaInput } from '../../models/api-request.model';
 
+interface ImageUploadData {
+  file: File;
+  colors?: {
+    dominant?: string;
+    palette?: string[];
+  };
+}
+
 @Component({
   selector: 'app-generator-page',
   standalone: true,
@@ -43,11 +51,22 @@ export class GeneratorPageComponent {
   generatedCode: GeneratedCode | null = null;
   error: string | null = null;
   
-  onImageSelected(file: File): void {
+  onImageSelected(data: ImageUploadData): void {
     this.isLoading = true;
     this.error = null;
     
-    this.apiService.generateCodeFromImage(file).subscribe({
+    // Extract file and color hints from the uploaded data
+    const { file, colors } = data;
+    
+    // Log color extraction for debugging
+    if (colors?.dominant) {
+      console.log('Dominant color extracted:', colors.dominant);
+    }
+    if (colors?.palette?.length) {
+      console.log('Color palette extracted:', colors.palette);
+    }
+    
+    this.apiService.generateCodeFromImage(file, colors).subscribe({
       next: (response) => {
         this.generatedCode = response;
         this.isLoading = false;

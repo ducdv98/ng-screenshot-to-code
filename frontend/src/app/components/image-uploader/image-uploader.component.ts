@@ -1,9 +1,19 @@
-import { Component, EventEmitter, Output } from '@angular/core';
+import { Component, ElementRef, EventEmitter, Output, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatCardModule } from '@angular/material/card';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
+// @ts-ignore
+import ColorThief from 'color-thief-browser';
+
+interface ImageUploadData {
+  file: File;
+  colors?: {
+    dominant?: string;
+    palette?: string[];
+  };
+}
 
 @Component({
   selector: 'app-image-uploader',
@@ -19,13 +29,27 @@ import { MatProgressBarModule } from '@angular/material/progress-bar';
   styleUrls: ['./image-uploader.component.scss']
 })
 export class ImageUploaderComponent {
-  @Output() fileSelected = new EventEmitter<File>();
+  @Output() fileSelected = new EventEmitter<ImageUploadData>();
+  @ViewChild('previewImage') previewImageRef?: ElementRef<HTMLImageElement>;
   
   isDragging = false;
   uploadProgress = 0;
   isUploading = false;
   selectedFileName = '';
   previewUrl: string | null = null;
+  dominantColor: string | null = null;
+  colorPalette: string[] = [];
+  
+  private colorThief = new ColorThief();
+  private currentFile: File | null = null;
+  
+  // Convert RGB array to hex color string
+  private rgbToHex(rgb: number[]): string {
+    return '#' + rgb.map(x => {
+      const hex = x.toString(16);
+      return hex.length === 1 ? '0' + hex : hex;
+    }).join('');
+  }
   
   onFileSelected(event: Event): void {
     const input = event.target as HTMLInputElement;
@@ -68,33 +92,89 @@ export class ImageUploaderComponent {
       return;
     }
     
+    // Store the file reference
+    this.currentFile = file;
+    
+    // Reset colors
+    this.dominantColor = null;
+    this.colorPalette = [];
+    
     // Simulate upload progress (in a real app, this would be handled during the API call)
     this.isUploading = true;
     this.selectedFileName = file.name;
     
     // Create preview
     this.createImagePreview(file);
-    
-    // Simulate progress (would be handled by real API in production)
-    let progress = 0;
-    const interval = setInterval(() => {
-      progress += 10;
-      this.uploadProgress = progress;
-      
-      if (progress >= 100) {
-        clearInterval(interval);
-        this.isUploading = false;
-        this.fileSelected.emit(file);
-      }
-    }, 100);
   }
   
   createImagePreview(file: File): void {
     const reader = new FileReader();
     reader.onload = (e: ProgressEvent<FileReader>) => {
       this.previewUrl = (e.target?.result as string) || null;
+      
+      // Need to wait for the image to load before extracting colors
+      setTimeout(() => {
+        this.extractColors();
+      }, 200);
     };
     reader.readAsDataURL(file);
+  }
+  
+  extractColors(): void {
+    if (!this.previewUrl || !this.currentFile) return;
+    
+    const img = new Image();
+    img.crossOrigin = 'Anonymous';
+    img.onload = () => {
+      try {
+        // Extract dominant color
+        const dominantRgb = this.colorThief.getColor(img);
+        this.dominantColor = this.rgbToHex(dominantRgb);
+        
+        // Extract color palette (5 colors)
+        const paletteRgb = this.colorThief.getPalette(img, 5);
+        this.colorPalette = paletteRgb.map((rgb: number[]) => this.rgbToHex(rgb));
+        
+        // Simulate progress
+        let progress = 0;
+        const interval = setInterval(() => {
+          progress += 10;
+          this.uploadProgress = progress;
+          
+          if (progress >= 100) {
+            clearInterval(interval);
+            this.isUploading = false;
+            
+            // Emit file with extracted colors
+            const fileData: ImageUploadData = {
+              file: this.currentFile!,
+              colors: {
+                dominant: this.dominantColor || undefined,
+                palette: this.colorPalette
+              }
+            };
+            this.fileSelected.emit(fileData);
+          }
+        }, 100);
+      } catch (error) {
+        console.error('Error extracting colors:', error);
+        // Fallback to just emitting the file without colors
+        this.isUploading = false;
+        if (this.currentFile) {
+          this.fileSelected.emit({ file: this.currentFile });
+        }
+      }
+    };
+    
+    img.onerror = () => {
+      console.error('Error loading image for color extraction');
+      this.isUploading = false;
+      if (this.currentFile) {
+        this.fileSelected.emit({ file: this.currentFile });
+      }
+    };
+    
+    img.src = this.previewUrl;
   }
   
   triggerFileInput(): void {

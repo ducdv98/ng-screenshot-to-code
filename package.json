@@ -1,1 +1,1 @@
-{"name": "ng-screenshot-to-code", "version": "1.0.0", "scripts": {"start": "cd frontend && npm run start"}}
+{"name":"ng-screenshot-to-code","version":"1.0.0","scripts":{"start":"cd frontend && npm run start"},"dependencies":{"color-thief-browser":"^2.0.2"}}

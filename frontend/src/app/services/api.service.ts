@@ -5,6 +5,11 @@ import { environment } from '../../environments/environment';
 import { GeneratedCode } from '../models/generated-code.model';
 import { FigmaInput } from '../models/api-request.model';
 
+interface ColorHints {
+  dominant?: string;
+  palette?: string[];
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -14,10 +19,17 @@ export class ApiService {
 
   /**
    * Generate Angular component from an image file
+   * @param file The image file to generate code from
+   * @param colorHints Optional color hints extracted from the image
    */
-  generateCodeFromImage(file: File): Observable<GeneratedCode> {
+  generateCodeFromImage(file: File, colorHints?: ColorHints): Observable<GeneratedCode> {
     const formData = new FormData();
     formData.append('file', file);
+    
+    // Add color hints if provided
+    if (colorHints) {
+      formData.append('color_hints', JSON.stringify(colorHints));
+    }
 
     return this.http.post<GeneratedCode>(`${this.apiUrl}/generate-image`, formData);
   }
