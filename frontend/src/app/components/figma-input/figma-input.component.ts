@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Output } from '@angular/core';
+import { Component, ElementRef, EventEmitter, Output, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -30,13 +30,16 @@ export class FigmaInputComponent {
   nodeId = '';
   accessToken = '';
   isSubmitting = false;
+  submissionMessage = '';
   
   onSubmit(): void {
     if (!this.figmaUrl || !this.accessToken) {
+      this.announceForScreenReaders('Please fill in all required fields.');
       return;
     }
     
     this.isSubmitting = true;
+    this.announceForScreenReaders('Processing your Figma design. This may take a moment.');
     
     const figmaInput: FigmaInput = {
       file_url: this.figmaUrl,
@@ -50,6 +53,7 @@ export class FigmaInputComponent {
     // Reset submission state but keep form values for potential resubmission
     setTimeout(() => {
       this.isSubmitting = false;
+      this.announceForScreenReaders('Figma design submitted for processing.');
     }, 500);
   }
   
@@ -57,5 +61,17 @@ export class FigmaInputComponent {
     this.figmaUrl = '';
     this.nodeId = '';
     this.accessToken = '';
+    this.announceForScreenReaders('Form cleared. All fields are now empty.');
+  }
+  
+  /**
+   * Announces messages to screen readers using the existing aria-live region
+   */
+  private announceForScreenReaders(message: string): void {
+    this.submissionMessage = message;
+    // Clear message after a delay to ensure it will be read again if the same message is set
+    setTimeout(() => {
+      this.submissionMessage = '';
+    }, 1000);
   }
 } 

@@ -1,12 +1,15 @@
 <div class="w-full">
   <mat-card 
-    class="w-full p-6" 
+    class="w-full p-6 dropzone-keyboard" 
     [class.border-2]="isDragging" 
     [class.border-dashed]="isDragging" 
     [class.border-blue-500]="isDragging"
     (dragover)="onDragOver($event)" 
     (dragleave)="onDragLeave($event)" 
-    (drop)="onDrop($event)">
+    (drop)="onDrop($event)"
+    role="region"
+    aria-label="Image upload area"
+    tabindex="0">
     
     <div class="flex flex-col items-center justify-center gap-4">
       <!-- Hidden file input -->
@@ -15,16 +18,19 @@
         id="file-input" 
         accept="image/*" 
         class="hidden" 
-        (change)="onFileSelected($event)">
+        (change)="onFileSelected($event)"
+        aria-hidden="true">
       
       <!-- Preview area -->
       @if (previewUrl) {
-        <div class="w-full max-h-80 overflow-hidden rounded-lg mb-4">
-          <img #previewImage [src]="previewUrl" class="w-full object-contain" alt="Preview">
+        <div class="w-full max-h-80 overflow-hidden rounded-lg mb-4" 
+             role="img" 
+             aria-label="Preview of the uploaded image">
+          <img #previewImage [src]="previewUrl" class="w-full object-contain" alt="Preview of uploaded image">
         </div>
       } @else {
-        <mat-icon class="text-6xl text-gray-400">image</mat-icon>
-        <p class="text-center text-gray-500">Drag and drop an image here, or click to select</p>
+        <mat-icon class="text-6xl text-gray-400" aria-hidden="true">image</mat-icon>
+        <p class="text-center text-gray-500" id="upload-instructions">Drag and drop an image here, or click to select</p>
       }
       
       <!-- Upload button -->
@@ -33,14 +39,16 @@
         color="primary" 
         type="button" 
         (click)="triggerFileInput()" 
-        [disabled]="isUploading">
-        <mat-icon>upload</mat-icon>
-        {{ previewUrl ? 'Change Image' : 'Upload Image' }}
+        [disabled]="isUploading"
+        aria-labelledby="upload-instructions"
+        [attr.aria-busy]="isUploading">
+        <mat-icon aria-hidden="true">upload</mat-icon>
+        <span>{{ previewUrl ? 'Change Image' : 'Upload Image' }}</span>
       </button>
       
       <!-- File name and progress -->
       @if (selectedFileName) {
-        <p class="text-sm text-gray-600 mt-2">{{ selectedFileName }}</p>
+        <p class="text-sm text-gray-600 mt-2" aria-live="polite">Selected file: {{ selectedFileName }}</p>
       }
       
       <!-- Progress bar -->
@@ -48,9 +56,29 @@
         <mat-progress-bar
           mode="determinate"
           [value]="uploadProgress"
-          class="w-full mt-4">
+          class="w-full mt-4"
+          aria-label="Upload progress"
+          [attr.aria-valuenow]="uploadProgress"
+          aria-valuemin="0"
+          aria-valuemax="100">
         </mat-progress-bar>
+        <p class="sr-only" aria-live="assertive">Uploading, {{ uploadProgress }}% complete</p>
       }
     </div>
   </mat-card>
-</div> 
+</div>
+
+<!-- Screen reader only styling -->
+<style>
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border-width: 0;
+  }
+</style> 

@@ -1,4 +1,4 @@
-import { Component, ElementRef, EventEmitter, Output, ViewChild } from '@angular/core';
+import { Component, ElementRef, EventEmitter, HostListener, Output, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
@@ -42,6 +42,17 @@ export class ImageUploaderComponent {
   
   private colorThief = new ColorThief();
   private currentFile: File | null = null;
+  
+  // Add keyboard support for the drop zone
+  @HostListener('keydown.space', ['$event'])
+  @HostListener('keydown.enter', ['$event'])
+  onKeyboardTrigger(event: KeyboardEvent): void {
+    // Only trigger if the event is on the card element itself
+    if ((event.target as HTMLElement).classList.contains('dropzone-keyboard')) {
+      event.preventDefault();
+      this.triggerFileInput();
+    }
+  }
   
   // Convert RGB array to hex color string
   private rgbToHex(rgb: number[]): string {
@@ -119,6 +130,9 @@ export class ImageUploaderComponent {
     
     // Create preview
     this.createImagePreview(file);
+
+    // Announce to screen readers
+    this.announceForScreenReaders(`File ${file.name} selected and processing`);
   }
   
   createImagePreview(file: File): void {
@@ -168,6 +182,9 @@ export class ImageUploaderComponent {
               }
             };
             this.fileSelected.emit(fileData);
+            
+            // Announce processing complete
+            this.announceForScreenReaders(`Image processing complete. Colors extracted.`);
           }
         }, 100);
       } catch (error) {
@@ -176,6 +193,7 @@ export class ImageUploaderComponent {
         this.isUploading = false;
         if (this.currentFile) {
           this.fileSelected.emit({ file: this.currentFile });
+          this.announceForScreenReaders(`Processing complete, but could not extract colors.`);
         }
       }
     };
@@ -185,6 +203,7 @@ export class ImageUploaderComponent {
       this.isUploading = false;
       if (this.currentFile) {
         this.fileSelected.emit({ file: this.currentFile });
+        this.announceForScreenReaders(`Error loading image.`);
       }
     };
     
@@ -193,5 +212,22 @@ export class ImageUploaderComponent {
   
   triggerFileInput(): void {
     document.getElementById('file-input')?.click();
+  }
+
+  /**
+   * Announces messages to screen readers using an ARIA live region
+   */
+  private announceForScreenReaders(message: string): void {
+    // Create a temporary element for announcement
+    const announcement = document.createElement('div');
+    announcement.setAttribute('aria-live', 'assertive');
+    announcement.setAttribute('class', 'sr-only');
+    announcement.textContent = message;
+    
+    // Add to DOM, wait a moment, then remove
+    document.body.appendChild(announcement);
+    setTimeout(() => {
+      document.body.removeChild(announcement);
+    }, 1000);
   }
 } 

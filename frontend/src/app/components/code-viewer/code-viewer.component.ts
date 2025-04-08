@@ -1,6 +1,6 @@
 import { Component, Input, AfterViewInit, OnChanges, SimpleChanges, ViewChild, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { MatTabsModule } from '@angular/material/tabs';
+import { MatTabsModule, MatTabChangeEvent } from '@angular/material/tabs';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
@@ -44,6 +44,9 @@ export class CodeViewerComponent implements AfterViewInit, OnChanges {
   private defaultHtmlValue = '<!-- HTML code will appear here -->';
   private defaultScssValue = '/* SCSS code will appear here */';
   
+  // Property for screen reader announcements
+  screenReaderMessage = '';
+  
   constructor(private snackBar: MatSnackBar, private monacoLoader: MonacoLoaderService) {}
   
   ngAfterViewInit(): void {
@@ -57,10 +60,12 @@ export class CodeViewerComponent implements AfterViewInit, OnChanges {
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['generatedCode'] && this.generatedCode) {
       this.updateEditors();
+      this.announceToScreenReader(`Code generated successfully for component ${this.generatedCode.component_name}`);
     }
     
     if (changes['code'] && this.code && this.showSingleEditor) {
       this.updateSingleEditor();
+      this.announceToScreenReader(`Code updated in editor`);
     }
   }
   
@@ -74,28 +79,31 @@ export class CodeViewerComponent implements AfterViewInit, OnChanges {
       return;
     }
     
+    // Configure Monaco editors with accessibility options
+    const commonOptions = {
+      theme: 'vs-dark',
+      automaticLayout: true,
+      minimap: { enabled: false },
+      readOnly: true,
+      accessibilitySupport: 'auto' as 'auto' // Type assertion to fix the linter error
+    };
+    
     this.tsEditor = monaco.editor.create(this.tsEditorElement.nativeElement, {
       value: this.defaultTsValue,
       language: 'typescript',
-      theme: 'vs-dark',
-      automaticLayout: true,
-      minimap: { enabled: false }
+      ...commonOptions
     });
     
     this.htmlEditor = monaco.editor.create(this.htmlEditorElement.nativeElement, {
       value: this.defaultHtmlValue,
       language: 'html',
-      theme: 'vs-dark',
-      automaticLayout: true,
-      minimap: { enabled: false }
+      ...commonOptions
     });
     
     this.scssEditor = monaco.editor.create(this.scssEditorElement.nativeElement, {
       value: this.defaultScssValue,
       language: 'scss',
-      theme: 'vs-dark',
-      automaticLayout: true,
-      minimap: { enabled: false }
+      ...commonOptions
     });
   }
   
@@ -110,7 +118,8 @@ export class CodeViewerComponent implements AfterViewInit, OnChanges {
       theme: 'vs-dark',
       automaticLayout: true,
       minimap: { enabled: false },
-      readOnly: true
+      readOnly: true,
+      accessibilitySupport: 'auto' as 'auto' // Type assertion to fix the linter error
     });
   }
   
@@ -141,19 +150,24 @@ export class CodeViewerComponent implements AfterViewInit, OnChanges {
     if (!this.generatedCode && !this.code) return;
     
     let textToCopy = '';
+    let description = '';
     
     if (type === 'single' && this.code) {
       textToCopy = this.code;
+      description = this.fileName || 'code';
     } else if (this.generatedCode) {
       switch (type) {
         case 'ts':
           textToCopy = this.generatedCode.component_ts;
+          description = 'TypeScript';
           break;
         case 'html':
           textToCopy = this.generatedCode.component_html;
+          description = 'HTML';
           break;
         case 'scss':
           textToCopy = this.generatedCode.component_scss;
+          description = 'SCSS';
           break;
       }
     }
@@ -163,12 +177,14 @@ export class CodeViewerComponent implements AfterViewInit, OnChanges {
         this.snackBar.open('Code copied to clipboard', 'Dismiss', {
           duration: 3000
         });
+        this.announceToScreenReader(`${description} code copied to clipboard`);
       })
       .catch(error => {
         console.error('Failed to copy code', error);
         this.snackBar.open('Failed to copy code', 'Dismiss', {
           duration: 3000
         });
+        this.announceToScreenReader('Failed to copy code');
       });
   }
   
@@ -184,6 +200,7 @@ export class CodeViewerComponent implements AfterViewInit, OnChanges {
     this.snackBar.open('Files downloaded', 'Dismiss', {
       duration: 3000
     });
+    this.announceToScreenReader('All component files downloaded');
   }
   
   private downloadFile(filename: string, content: string): void {
@@ -196,5 +213,25 @@ export class CodeViewerComponent implements AfterViewInit, OnChanges {
     a.click();
     
     window.URL.revokeObjectURL(url);
+  }
+  
+  /**
+   * Announce tab change to screen readers
+   */
+  announceSelectedTab(event: MatTabChangeEvent): void {
+    const tabLabels = ['TypeScript', 'HTML', 'SCSS'];
+    const selectedTab = tabLabels[event.index];
+    this.announceToScreenReader(`${selectedTab} tab selected`);
+  }
+  
+  /**
+   * Announces messages to screen readers using the ARIA live region
+   */
+  private announceToScreenReader(message: string): void {
+    this.screenReaderMessage = message;
+    // Clear after a delay to ensure it can be read again if the same message occurs
+    setTimeout(() => {
+      this.screenReaderMessage = '';
+    }, 1000);
   }
 } 

@@ -176,13 +176,15 @@ This document outlines all tasks required to implement the enhancements for the 
   - Input controls and feedback mechanisms added
   - Added warning display system for Figma mapping errors
   - Implemented reset functionality for clearing inputs and generated code
-  - Pending: Additional accessibility improvements
+  - Added comprehensive accessibility improvements with ARIA attributes and screen reader support
+  - Pending: Further UI refinements and visual consistency improvements
 
 ## Documentation Updates 🔄
 - **Status**: Partially Completed
 - **Progress**:
   - Basic setup instructions added
   - Component documentation started
+  - Accessibility improvements documented
   - Pending: Comprehensive user guide and architecture documentation
 
 ## Phase 4: Polish, Testing & Advanced Features 🔄
@@ -190,9 +192,14 @@ This document outlines all tasks required to implement the enhancements for the 
 - **Completed**:
   - Added warning display for Figma mapping errors
   - Implemented UI state clearing between generations
+  - Added comprehensive accessibility improvements:
+    - Added ARIA labels, roles, and proper keyboard support to Image Uploader
+    - Enhanced Figma Input with screen reader announcements and ARIA attributes
+    - Added accessibility features to Code Viewer with tab announcements and proper focus management
+    - Implemented screen reader notifications across components
+    - Added SR-only styling for screen reader announcements
 
 - **Next Steps**:
-  - Implement comprehensive accessibility improvements (ARIA labels, keyboard navigation)
   - Add end-to-end testing framework
   - Implement performance optimizations for large Figma files
   - Add more advanced features like component editing
