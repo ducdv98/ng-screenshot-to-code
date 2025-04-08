@@ -24,4 +24,9 @@ app.include_router(api_router, prefix="/api/v1")
 
 @app.get("/")
 async def root():
-    return {"message": "Screenshot to Angular Code API is running"} 
+    return {"message": "Screenshot to Angular Code API is running"}
+
+@app.get("/health", tags=["Health Check"])
+async def health_check():
+    """Check if the application is running."""
+    return {"status": "ok"} 
