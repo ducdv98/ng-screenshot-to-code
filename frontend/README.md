@@ -46,14 +46,53 @@ ng test
 
 ## Running end-to-end tests
 
-For end-to-end (e2e) testing, run:
+The project uses Playwright for end-to-end testing. To run the tests:
+
+### First-time setup
 
 ```bash
-ng e2e
+# Install Playwright dependencies
+npm install -D @playwright/test
+npx playwright install
 ```
 
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
+### Running the tests
+
+```bash
+# Run all tests in headless mode (suitable for CI/CD)
+npm run e2e
+
+# Run tests with UI for debugging
+npm run e2e:ui
+
+# Run tests with debugging
+npm run e2e:debug
+
+# Run a specific test file
+npx playwright test basic.spec.ts
+```
+
+### Test categories
+
+The test suite includes:
+- Basic UI and navigation tests
+- Form validation tests
+- API integration tests
+- Error handling and edge cases
+- Component preview testing
+
+### Viewing test reports
+
+After running the tests, you can view the HTML report:
+
+```bash
+npx playwright show-report
+```
+
+Test artifacts (including screenshots) are saved in the `test-results` directory.
 
 ## Additional Resources
 
 For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+
+For Playwright testing documentation, visit the [Playwright documentation](https://playwright.dev/docs/intro).

@@ -12,6 +12,8 @@ A tool that converts screenshots and Figma designs into Angular components using
 - [API Keys Configuration](#api-keys-configuration)
 - [Usage Guide](#usage-guide)
 - [Troubleshooting](#troubleshooting)
+- [End-to-End Testing](#end-to-end-testing)
+- [Contributing](#contributing)
 
 ## Features
 
@@ -191,6 +193,80 @@ DEFAULT_VLM_PROVIDER=gemini  # Choose one of: "openai", "anthropic", or "gemini"
 - **Connection to backend failed**: Verify the backend is running and accessible
 
 For further assistance, please refer to the documentation or raise an issue in the repository.
+
+## End-to-End Testing
+
+The project includes comprehensive end-to-end tests using Playwright, covering both frontend and backend integration.
+
+### Setup E2E Testing Environment
+
+1. **Install Playwright**:
+   ```bash
+   cd frontend
+   npm install -D @playwright/test
+   npx playwright install
+   ```
+
+2. **Test Structure**:
+   - Basic UI tests
+   - Form validation tests
+   - API integration tests
+   - Error handling tests
+   - Component preview tests
+
+### Running E2E Tests
+
+You can run the tests in headless mode (suitable for CI/CD):
+
+```bash
+cd frontend
+npm run e2e
+```
+
+For debugging with UI:
+
+```bash
+cd frontend
+npm run e2e:ui
+```
+
+For running a specific test file:
+
+```bash
+cd frontend
+npx playwright test api-integration.spec.ts
+```
+
+### Test Reports
+
+After running the tests, you can view the HTML report:
+
+```bash
+cd frontend
+npx playwright show-report
+```
+
+Screenshots and test artifacts are saved in the `test-results` directory.
+
+### Testing Both Frontend and Backend
+
+When running the full integration tests:
+
+1. Ensure both frontend and backend servers are running:
+   ```bash
+   # Terminal 1 - Start Backend
+   cd backend
+   source venv/bin/activate  # On Windows: venv\Scripts\activate
+   uvicorn app.main:app --reload
+   
+   # Terminal 2 - Start Frontend
+   cd frontend
+   ng serve
+   
+   # Terminal 3 - Run E2E Tests
+   cd frontend
+   npm run e2e
+   ```
 
 ## Contributing
 
