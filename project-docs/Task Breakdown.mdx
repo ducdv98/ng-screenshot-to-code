@@ -1,0 +1,149 @@
+Okay, here is a breakdown of tasks for building the MVP (Minimum Viable Product) based on the development phases, project structure, and requirements. The primary goal of the MVP is to achieve the core **Image-to-Code** functionality with basic display and preview, integrating the Angular frontend and FastAPI backend.
+
+**Assumptions for MVP:**
+
+*   Focus is *only* on Image Input (F1) to basic Angular/Material/Tailwind code generation (F3, F5).
+*   Figma input (F2, F4) is *post-MVP*.
+*   "Pixel perfect" (NFR1) is *aspirational*; MVP aims for functional similarity.
+*   Basic code display (F7) and a simple static preview (F6) are sufficient.
+*   Error handling is minimal but present for critical paths.
+*   Code quality (NFR4) is secondary to functionality for the initial MVP output.
+
+**Phase 1: Core Image-to-Angular-Material-Tailwind Conversion (MVP Focus)**
+
+**Task 1.1: Backend - Project Setup & Basic App**
+
+*   **Goal:** Initialize the FastAPI project structure and have a minimal running server.
+*   **Location:** `backend/`
+*   **Actions:**
+    *   Create the directory structure (`app`, `app/api/v1`, `app/core`, `app/models`, `app/services`, `app/main.py`, `requirements.txt`, `.env.example`).
+    *   Install core dependencies: `fastapi`, `uvicorn[standard]`, `python-dotenv`.
+    *   Implement `app/main.py`: Initialize FastAPI app, include basic CORS middleware (allow frontend origin - e.g., `http://localhost:4200`).
+    *   Implement `app/core/config.py`: Setup basic Pydantic `Settings` model to load environment variables (even if none are used yet).
+    *   Create a health check endpoint (e.g., `/health`) in `app/main.py` or a simple router to verify the server runs.
+*   **Result:** A runnable FastAPI server (`uvicorn app.main:app --reload`) responding to `/health`.
+
+**Task 1.2: Frontend - Project Setup & Basic UI Shell**
+
+*   **Goal:** Initialize the Angular project with Material & Tailwind, create the main page shell.
+*   **Location:** `frontend/`
+*   **Actions:**
+    *   Create Angular project using CLI (`ng new frontend --standalone ...`).
+    *   Add Angular Material (`ng add @angular/material`).
+    *   Setup TailwindCSS (install dependencies, configure `tailwind.config.js`, `postcss.config.js`, import in `src/styles.scss`).
+    *   Create `GeneratorPageComponent` (`src/app/pages/generator-page/`).
+    *   Configure basic routing in `app.routes.ts` to display `GeneratorPageComponent` by default.
+    *   In `GeneratorPageComponent`'s HTML, add basic placeholders/titles for "Upload", "Code", "Preview". Use basic Material components (e.g., `mat-toolbar`) for structure if desired.
+*   **Result:** A runnable Angular app (`ng serve`) showing the basic `GeneratorPageComponent` layout.
+
+**Task 1.3: Frontend - Image Upload Component**
+
+*   **Goal:** Create a UI component to allow users to select an image file.
+*   **Location:** `frontend/src/app/components/image-uploader/`
+*   **Actions:**
+    *   Create `ImageUploaderComponent`.
+    *   Implement a simple file input (`<input type="file" accept="image/*">`). Use `MatButton` to trigger the input if desired for styling.
+    *   Add logic in the `.ts` file to capture the selected `File` object when the input changes.
+    *   Emit the selected `File` object using an `@Output()` EventEmitter.
+    *   Integrate `ImageUploaderComponent` into `GeneratorPageComponent`.
+*   **Result:** User can select an image file via the UI; the `File` object is available in `GeneratorPageComponent`.
+
+**Task 1.4: Backend - Image Upload Endpoint Stub**
+
+*   **Goal:** Create the API endpoint that can receive an image file.
+*   **Location:** `backend/app/api/v1/endpoints/generate_image.py`, `backend/app/api/v1/router.py`
+*   **Actions:**
+    *   Define a Pydantic model for the response (e.g., `GeneratedCode` in `backend/app/models/generated_code.py`) with initial fields like `component_ts: str`, `component_html: str`, `component_scss: str`.
+    *   Create the `generate_from_image` endpoint function in `generate_image.py`. Use FastAPI's `UploadFile` type hint (`image: UploadFile = File(...)`).
+    *   Register this endpoint with a router in `router.py` and mount the router in `main.py` under `/api/v1`.
+    *   For MVP *stub*, the endpoint can immediately return dummy hardcoded code strings conforming to the `GeneratedCode` model. *Do not implement AI call yet.*
+*   **Result:** Backend has a `/api/v1/generate-from-image` POST endpoint that accepts a file upload and returns dummy JSON data.
+
+**Task 1.5: Frontend - API Service & Basic Connection**
+
+*   **Goal:** Connect the frontend upload action to the backend endpoint stub.
+*   **Location:** `frontend/src/app/services/api.service.ts`, `frontend/src/app/pages/generator-page/`
+*   **Actions:**
+    *   Create `ApiService`. Inject `HttpClient`.
+    *   Define the backend API URL in `environment.ts`.
+    *   Implement a method `generateCodeFromImage(file: File): Observable<GeneratedCode>` in `ApiService`. This method should:
+        *   Create `FormData`.
+        *   Append the `file` to the `FormData`.
+        *   Make a POST request using `HttpClient` to the backend endpoint (`/api/v1/generate-from-image`).
+        *   Type the expected response using a `GeneratedCode` interface (create `frontend/src/app/models/generated-code.model.ts` matching the backend Pydantic model).
+    *   In `GeneratorPageComponent`, when the `ImageUploaderComponent` emits a file, call the `ApiService.generateCodeFromImage` method.
+    *   Log the response from the backend stub to the console.
+*   **Result:** User uploads image -> Frontend calls backend -> Backend stub responds -> Frontend logs the dummy code strings. The basic FE/BE communication loop is established.
+
+**Task 1.6: Backend - AI Service Integration (VLM Call)**
+
+*   **Goal:** Implement the core logic to send the image to the VLM and get a response.
+*   **Location:** `backend/app/services/ai_service.py`, `backend/app/services/code_generator.py`, `backend/app/api/v1/endpoints/generate_image.py`, `backend/core/config.py`
+*   **Actions:**
+    *   Add AI SDK dependency (e.g., `openai`, `anthropic`) to `requirements.txt` and install.
+    *   Update `config.py` to load VLM API key (e.g., `OPENAI_API_KEY`) from environment variables. Ensure `.env.example` reflects this.
+    *   Implement `ai_service.py`: Create a function `get_code_from_image(image_bytes: bytes, image_media_type: str, api_key: str)` that:
+        *   Initializes the AI client.
+        *   Prepares the image data (e.g., base64 encoding).
+        *   Calls the VLM API (e.g., GPT-4 Vision, Claude 3) with the image data and a *specific prompt* (defined in `code_generator.py`).
+        *   Returns the raw text response from the AI.
+    *   Implement `code_generator.py`:
+        *   Create a function `generate_angular_code_prompt(image_description_request: str = "")` that returns the detailed prompt string instructing the AI to generate Angular/Material/Tailwind code (`.ts`, `.html`, `.scss`). *This prompt is critical.*
+        *   Create a function `process_image_input(image_bytes: bytes, image_media_type: str)` that:
+            *   Gets the prompt using `generate_angular_code_prompt()`.
+            *   Calls `ai_service.get_code_from_image()` using the prompt.
+            *   *Initially*, just return the raw AI response. (Parsing into structured TS/HTML/SCSS comes next).
+    *   Update the `generate_from_image` endpoint in `generate_image.py`:
+        *   Read image bytes: `image_content = await image.read()`.
+        *   Get the API key from settings.
+        *   Call `code_generator.process_image_input(image_content, image.content_type)`.
+        *   *Temporarily*, put the entire raw AI response into the `component_html` field of the `GeneratedCode` response model for testing.
+*   **Result:** Backend receives image -> Sends to VLM with a specific prompt -> Receives raw text response from VLM -> Sends this raw text back to frontend (in one field).
+
+**Task 1.7: Backend - Parse AI Response**
+
+*   **Goal:** Parse the raw AI text response into structured TS, HTML, and SCSS code strings.
+*   **Location:** `backend/app/services/code_generator.py`, `backend/app/api/v1/endpoints/generate_image.py`
+*   **Actions:**
+    *   Refine the prompt in `generate_angular_code_prompt` to explicitly ask the AI to delimit the code blocks (e.g., using ```typescript, ```html, ```scss markdown).
+    *   Update the `process_image_input` function in `code_generator.py`:
+        *   After receiving the raw AI response, implement basic parsing logic (e.g., using regex or string splitting based on the expected delimiters) to extract the content within the ```typescript, ```html, and ```scss blocks.
+        *   Handle cases where the AI might not follow the format perfectly (return empty strings or error flags if parsing fails).
+    *   Update the `generate_from_image` endpoint:
+        *   Call the updated `process_image_input`.
+        *   Populate the `component_ts`, `component_html`, `component_scss` fields of the `GeneratedCode` response model with the parsed strings.
+*   **Result:** Backend receives image -> Calls VLM -> Parses AI response -> Returns structured `GeneratedCode` JSON with potentially populated TS, HTML, SCSS fields.
+
+**Task 1.8: Frontend - Display Generated Code**
+
+*   **Goal:** Show the received TS, HTML, and SCSS code strings in the UI.
+*   **Location:** `frontend/src/app/components/code-viewer/`, `frontend/src/app/pages/generator-page/`
+*   **Actions:**
+    *   Create `CodeViewerComponent`.
+    *   Add `@Input()` properties for `typescriptCode: string`, `htmlCode: string`, `scssCode: string`.
+    *   Inside `CodeViewerComponent`'s template, use simple `<pre><code>` tags initially to display each code string. Add titles (TS, HTML, SCSS).
+    *   In `GeneratorPageComponent`:
+        *   Add a property to hold the received `GeneratedCode` object (or individual code strings). Initialize as null/empty.
+        *   Use `*ngIf` to only show the `CodeViewerComponent` when code data is available.
+        *   Pass the received code strings to the `CodeViewerComponent` inputs.
+        *   Add a basic loading indicator (e.g., `mat-spinner`) shown while the API call is in progress.
+*   **Result:** User uploads image -> Loading indicator shows -> Backend processes -> Code strings appear in designated areas on the frontend.
+
+**Task 1.9: Frontend - Basic Static Preview (Iframe)**
+
+*   **Goal:** Render the generated HTML styled by Tailwind in a sandboxed iframe.
+*   **Location:** `frontend/src/app/components/preview-pane/`, `frontend/src/app/pages/generator-page/`, `frontend/src/app/services/preview.service.ts` (Optional service, can be logic within PreviewPane)
+*   **Actions:**
+    *   Create `PreviewPaneComponent`.
+    *   Add an `@Input() htmlContent: string`. Add an `@Input() cssContent: string` (though the SCSS won't be directly usable here, the Tailwind classes in HTML are key).
+    *   In the component's template, add an `<iframe>` element.
+    *   In the `.ts` file, use Angular's `DomSanitizer` to bypass security for the `srcdoc` attribute.
+    *   When `htmlContent` input changes, construct the `srcdoc` value. This string should be a full HTML document containing:
+        *   A `<head>` section linking to the TailwindCSS CDN (`<script src="https://cdn.tailwindcss.com"></script>`). *This is crucial for MVP preview.*
+        *   Optionally, link to Angular Material theme CSS CDN for basic Material styles (won't make components interactive).
+        *   A `<body>` tag containing the received `htmlContent`.
+    *   Bind the sanitized `srcdoc` string to the `<iframe>`'s `[srcdoc]` attribute.
+    *   In `GeneratorPageComponent`, add the `<app-preview-pane>` and pass the received `component_html` string to its input. Only show when HTML is available.
+*   **Result:** After code generation, the preview pane attempts to render the generated HTML structure, styled using Tailwind via CDN. Angular Material components will appear as their base HTML elements styled by Tailwind/Material theme CSS, but without Angular functionality.
+
+**MVP Complete:** At this point, the application fulfills the core loop: upload image -> send to backend -> call AI -> parse response -> display TS/HTML/SCSS code -> show static HTML/Tailwind preview. It's runnable and demonstrates the basic concept. Further enhancements (Figma, better preview, accuracy improvements, code editing, error handling, etc.) build upon this foundation.
