@@ -7,6 +7,7 @@ A tool that converts screenshots and Figma designs into Angular components using
 - **Image-to-Code**: Upload screenshots or UI mockups and convert them to Angular components
 - **Figma-to-Code**: Input Figma designs and convert them to Angular components
 - **Angular Material & TailwindCSS**: Generated components use Angular Material and TailwindCSS for styling
+- **Multiple AI Providers**: Support for OpenAI, Anthropic Claude, and Google Gemini
 - **Live Preview**: Instantly preview the generated components
 - **Code Editing**: View and edit the generated TypeScript, HTML, and SCSS code
 - **Download Options**: Download the generated files for use in your Angular projects
@@ -24,6 +25,7 @@ A tool that converts screenshots and Figma designs into Angular components using
 - FastAPI (Python)
 - OpenAI GPT-4 Vision API
 - Anthropic Claude API
+- Google Gemini API
 - Figma API
 
 ## Project Structure
@@ -62,6 +64,11 @@ The project consists of two main parts:
    cp .env.example .env
    # Edit .env to add your API keys
    ```
+   
+   You need at least one of the following API keys:
+   - OPENAI_API_KEY - For OpenAI GPT-4 Vision
+   - ANTHROPIC_API_KEY - For Anthropic Claude
+   - GEMINI_API_KEY - For Google Gemini
 
 ### Frontend Setup
 1. Navigate to the frontend directory:
@@ -94,11 +101,12 @@ The application will be available at `http://localhost:4200`.
 ## Usage
 
 1. Open the application in your browser
-2. Upload a screenshot or input Figma design details
-3. Wait for the AI to process and generate the code
-4. View and edit the generated code in the Monaco editor
-5. Preview the component in real-time
-6. Download the component files for use in your project
+2. Choose your preferred AI provider in the settings (OpenAI, Claude, or Gemini)
+3. Upload a screenshot or input Figma design details
+4. Wait for the AI to process and generate the code
+5. View and edit the generated code in the Monaco editor
+6. Preview the component in real-time
+7. Download the component files for use in your project
 
 ## Contributing
 

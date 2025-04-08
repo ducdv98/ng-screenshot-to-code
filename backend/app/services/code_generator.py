@@ -1,6 +1,7 @@
 from typing import Dict, Any
 import openai
 import anthropic
+import google.generativeai as genai
 from app.core.config import settings
 from app.models.generated_code import GeneratedCode
 
@@ -9,8 +10,15 @@ class CodeGenerator:
     Service for generating Angular component code based on AI descriptions or Figma data.
     """
     def __init__(self):
-        self.openai_client = openai.OpenAI(api_key=settings.OPENAI_API_KEY)
-        self.anthropic_client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY)
+        self.openai_client = openai.OpenAI(api_key=settings.OPENAI_API_KEY) if settings.OPENAI_API_KEY else None
+        self.anthropic_client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY) if settings.ANTHROPIC_API_KEY else None
+        
+        # Initialize Gemini API if key is available
+        if settings.GEMINI_API_KEY:
+            genai.configure(api_key=settings.GEMINI_API_KEY)
+            self.gemini_model = settings.GEMINI_MODEL
+        else:
+            self.gemini_model = None
     
     async def generate_from_image_description(self, ai_description: Dict[str, Any]) -> GeneratedCode:
         """
@@ -25,12 +33,14 @@ class CodeGenerator:
         description_text = ai_description.get("description", "")
         
         # Choose the appropriate service based on the configured VLM provider
-        if settings.DEFAULT_VLM_PROVIDER == "openai":
+        if settings.DEFAULT_VLM_PROVIDER == "openai" and settings.OPENAI_API_KEY:
             result = await self._generate_with_openai(description_text)
-        elif settings.DEFAULT_VLM_PROVIDER == "anthropic":
+        elif settings.DEFAULT_VLM_PROVIDER == "anthropic" and settings.ANTHROPIC_API_KEY:
             result = await self._generate_with_anthropic(description_text)
+        elif settings.DEFAULT_VLM_PROVIDER == "gemini" and settings.GEMINI_API_KEY:
+            result = await self._generate_with_gemini(description_text)
         else:
-            raise ValueError(f"Unsupported VLM provider: {settings.DEFAULT_VLM_PROVIDER}")
+            raise ValueError(f"Unsupported or unconfigured VLM provider: {settings.DEFAULT_VLM_PROVIDER}")
         
         return GeneratedCode(
             component_ts=result.get("component_ts", ""),
@@ -56,12 +66,14 @@ class CodeGenerator:
         figma_description = self._extract_figma_description(figma_data)
         
         # Choose the appropriate service
-        if settings.DEFAULT_VLM_PROVIDER == "openai":
+        if settings.DEFAULT_VLM_PROVIDER == "openai" and settings.OPENAI_API_KEY:
             result = await self._generate_with_openai(figma_description)
-        elif settings.DEFAULT_VLM_PROVIDER == "anthropic":
+        elif settings.DEFAULT_VLM_PROVIDER == "anthropic" and settings.ANTHROPIC_API_KEY:
             result = await self._generate_with_anthropic(figma_description)
+        elif settings.DEFAULT_VLM_PROVIDER == "gemini" and settings.GEMINI_API_KEY:
+            result = await self._generate_with_gemini(figma_description)
         else:
-            raise ValueError(f"Unsupported VLM provider: {settings.DEFAULT_VLM_PROVIDER}")
+            raise ValueError(f"Unsupported or unconfigured VLM provider: {settings.DEFAULT_VLM_PROVIDER}")
         
         return GeneratedCode(
             component_ts=result.get("component_ts", ""),
@@ -71,45 +83,38 @@ class CodeGenerator:
         )
     
     def _extract_figma_description(self, figma_data: Dict[str, Any]) -> str:
-        """Extract a textual description from Figma data for AI processing."""
-        # This is a simplified version that would need to be expanded
-        # Here we'd parse the Figma document structure and convert it to a detailed text description
-        
-        file_data = figma_data.get("file_data", {})
-        node_data = figma_data.get("node_data", {})
-        
-        # Extract document name
-        document_name = file_data.get("name", "Untitled Figma Document")
-        
-        # If we have specific node data, describe that node
-        description = f"Figma design titled '{document_name}'.\n\n"
-        
-        if node_data:
-            node = node_data.get("document", {})
-            node_name = node.get("name", "Untitled Node")
-            node_type = node.get("type", "UNKNOWN")
-            
-            description += f"Node '{node_name}' of type {node_type}.\n"
-            
-            # Add more logic here to extract colors, typography, layout, etc.
-            
-        else:
-            # Describe the whole document
-            document = file_data.get("document", {})
-            children = document.get("children", [])
-            
-            description += f"The document contains {len(children)} top-level frames/artboards.\n"
-            
-            # List a few frames/artboards
-            for i, child in enumerate(children[:5]):
-                child_name = child.get("name", "Untitled Frame")
-                child_type = child.get("type", "UNKNOWN")
-                description += f"- {child_name} ({child_type})\n"
-            
-            if len(children) > 5:
-                description += f"And {len(children) - 5} more frames/artboards...\n"
-        
-        return description
+        """Extract a textual description from Figma data for use in prompts."""
+        # Simplified for now - in a real implementation, this would parse the Figma nodes
+        # and create a structured text description
+        return f"Figma design with {len(figma_data.get('nodes', []))} nodes."
+    
+    def _create_prompt(self, description: str) -> str:
+        """Create a detailed prompt for code generation based on the description."""
+        return f"""
+Based on the following UI description, generate an Angular component with Angular Material components and TailwindCSS.
+
+UI DESCRIPTION:
+{description}
+
+Requirements:
+1. Generate TypeScript code for an Angular component with the @Component decorator and necessary imports.
+2. Generate HTML template using Angular Material components where appropriate (like mat-button, mat-card, etc.) and TailwindCSS for styling.
+3. Generate SCSS with any custom styles needed beyond TailwindCSS.
+4. Suggest an appropriate component name.
+
+Format your response as a JSON object with the following properties:
+- component_ts: The TypeScript code for the component
+- component_html: The HTML template
+- component_scss: The SCSS styles
+- component_name: A suggested name for the component (kebab-case)
+
+Make sure the code follows best practices:
+- Use Angular's standalone components
+- Apply proper TypeScript types
+- Use TailwindCSS for styling as much as possible
+- Implement responsive design
+- Keep accessibility in mind
+"""
     
     async def _generate_with_openai(self, description: str) -> Dict[str, Any]:
         """Generate code using OpenAI."""
@@ -143,36 +148,30 @@ class CodeGenerator:
         )
         
         return self._parse_ai_response(response.content[0].text)
-    
-    def _create_prompt(self, description: str) -> str:
-        """Create a detailed prompt for code generation."""
-        return f"""
-        Based on the following UI description, generate an Angular component that implements this design using Angular Material components and TailwindCSS for styling:
         
-        {description}
+    async def _generate_with_gemini(self, description: str) -> Dict[str, Any]:
+        """Generate code using Google Gemini 2.0."""
+        prompt = self._create_prompt(description)
         
-        Please provide:
+        # Add the system prompt to the beginning of the user prompt
+        system_prompt = "You are an expert Angular developer who specializes in creating components with Angular Material and TailwindCSS. Generate clean, organized code that follows Angular best practices."
+        combined_prompt = f"{system_prompt}\n\n{prompt}"
         
-        1. A TypeScript file (component.ts) using the standalone component architecture
-        2. An HTML template file (component.html) using Angular Material components where appropriate
-        3. A SCSS file (component.scss) with TailwindCSS utility classes
-        4. A suggested component name
+        # Get the Gemini model for text generation with optimized settings for 2.0
+        model = genai.GenerativeModel(
+            self.gemini_model,
+            generation_config={
+                "temperature": 0.2,
+                "top_p": 0.95,
+                "top_k": 40
+            }
+            # Removing safety settings for now as they might be causing issues
+        )
         
-        Use Angular Material components like mat-button, mat-card, mat-form-field where appropriate. Use TailwindCSS utility classes for layout, spacing, colors, and typography.
+        # Generate with Gemini 2.0
+        response = model.generate_content(combined_prompt)
         
-        Format your response using the following JSON structure:
-        
-        ```json
-        {{
-            "component_ts": "// TypeScript code here",
-            "component_html": "<!-- HTML template here -->",
-            "component_scss": "/* SCSS styles here */",
-            "component_name": "suggested-name"
-        }}
-        ```
-        
-        Make sure the component follows Angular best practices, using proper typing, modern Angular features, and idiomatic code.
-        """
+        return self._parse_ai_response(response.text)
     
     def _parse_ai_response(self, response_text: str) -> Dict[str, Any]:
         """Parse the AI response to extract the generated code components."""

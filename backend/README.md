@@ -67,6 +67,35 @@ Provide a Figma URL and access token to generate an Angular component.
 
 Configuration is managed through environment variables. See `.env.example` for available options.
 
+## Securing API Keys
+
+To protect your API keys when working with version control:
+
+1. Never commit the actual `.env` file to Git:
+   - The `.env` file is included in `.gitignore` to prevent accidental commits
+   - Only commit `.env.example` with placeholder values
+  
+2. For local development:
+   ```bash
+   # Copy the example file
+   cp .env.example .env
+   
+   # Edit .env with your actual API keys
+   OPENAI_API_KEY=your_actual_key
+   ANTHROPIC_API_KEY=your_actual_key
+   GEMINI_API_KEY=your_actual_key
+   ```
+
+3. For production deployment:
+   - Set environment variables directly on your hosting platform
+   - Many platforms (Heroku, Vercel, etc.) provide secure ways to store secrets
+   - Consider using a secrets manager for cloud deployments
+
+4. When collaborating:
+   - Share API keys through secure channels (password managers, encrypted messages)
+   - Consider using separate API keys for each team member during development
+   - Use production keys only in staging/production environments
+
 ## Architecture
 
 The backend follows a layered architecture:
