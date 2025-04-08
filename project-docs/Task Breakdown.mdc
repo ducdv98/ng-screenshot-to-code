@@ -1,6 +1,6 @@
 # MVP Task List: Screenshot to Angular Code Generator
 
-**Project Goal:** Build a Minimum Viable Product (MVP) of an application that takes an image (screenshot/mockup) as input and generates corresponding Angular component code (TypeScript, HTML, SCSS) using AI (VLM), styled with Angular Material and TailwindCSS. The MVP will display the generated code and a basic static preview.
+**Project Goal:** Build a Minimum Viable Product (MVP) of an application that takes an image (screenshot/mockup) as input and generates corresponding Angular component code (TypeScript, HTML, SCSS) using AI (primarily Google's Gemini API), styled with Angular Material and TailwindCSS. The MVP will display the generated code and a basic static preview.
 
 **Target Audience:** AI Agents / Developers implementing the MVP.
 

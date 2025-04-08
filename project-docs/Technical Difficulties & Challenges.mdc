@@ -32,8 +32,8 @@ Technical Difficulties & Challenges
     *   **Mitigation:** Use a sandboxed iframe. Serve the generated HTML/CSS/JS (potentially compiled Angular code, or more simply, just the HTML/Tailwind for a static preview) within the iframe from a different origin or using `srcdoc`. A full Angular component preview would require dynamic compilation or using Web Components/Elements. Start with a static HTML/Tailwind preview in an iframe.
 
 8.  **VLM API Costs & Rate Limits:**
-    *   **Challenge:** Models like GPT-4V are expensive per call. Frequent use can lead to high operational costs. Rate limits might affect user experience during high traffic.
-    *   **Mitigation:** Use more cost-effective models (like Claude 3 Haiku/Sonnet) if acceptable quality can be achieved. Implement caching where possible (though unlikely for unique images). Optimize prompts to minimize token usage. Implement usage quotas or paid tiers if necessary.
+    *   **Challenge:** Different VLM providers have varying costs and rate limits. Models like GPT-4V are expensive per call, while others like Gemini may offer better cost efficiency. Frequent use can lead to high operational costs. Rate limits might affect user experience during high traffic.
+    *   **Mitigation:** Use Google's Gemini 1.5 Pro/Flash as the primary model for cost efficiency with good capabilities. Fall back to alternatives like Claude 3 Haiku/Sonnet or GPT-4V only when necessary. Implement caching where possible (though unlikely for unique images). Optimize prompts to minimize token usage. Implement usage quotas or paid tiers if necessary.
 
 9.  **Environment Setup for Generated Code:**
     *   **Challenge:** The generated code assumes a specific Angular project setup (Angular CLI, Material installed, Tailwind configured).

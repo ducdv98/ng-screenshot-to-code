@@ -11,7 +11,7 @@ Angular Developers (Frontend Engineers, Full-Stack Engineers working with Angula
 *   **F1: Image Input:** Allow users to upload image files (PNG, JPG, WEBP) representing UI screenshots or mockups.
 *   **F2: Figma Input:** Allow users to input a Figma design URL and potentially provide API credentials (or use OAuth) to access and parse Figma designs.
 *   **F3: AI-Powered Conversion (Image):**
-    *   Send the uploaded image to a VLM.
+    *   Send the uploaded image to Google's Gemini 1.5 Pro/Flash (primary VLM choice for cost efficiency and performance).\n    *   Optional fallbacks to other VLMs like OpenAI's GPT-4V or Anthropic's Claude when needed.
     *   Prompt the VLM to generate an Angular component structure (`.ts`, `.html`, `.scss`/`.css`) based on the image.
     *   Instruct the VLM to prioritize using Angular Material components where appropriate (e.g., identify buttons, cards, inputs).
     *   Instruct the VLM to use TailwindCSS classes for layout, spacing, typography, colors, and other styling, adhering to Material 3 design principles where applicable.

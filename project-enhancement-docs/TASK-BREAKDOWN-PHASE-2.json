@@ -1,0 +1,332 @@
+{
+    "title": "Phase 2 Task List: Enhancements & UX Improvements",
+    "phase_goal": "Improve the accuracy, preview fidelity, and user experience of the core image-to-Angular-code feature. Integrate a proper code editor and basic style extraction.",
+    "target_audience": "AI Agents / Developers implementing Phase 2.",
+    "instructions": "Complete the following tasks sequentially where dependencies exist (e.g., install Monaco before using it). Tasks related to UX/UI are integrated within relevant functional areas or listed separately. Verify completion using the expected results.",
+    "tasks": [
+      {
+        "id": "2.1",
+        "title": "Backend - Refine Prompt Generation Logic",
+        "goal": "Improve the VLM prompt structure to increase code generation accuracy and consistency.",
+        "location": "backend/app/services/code_generator.py",
+        "detailed_steps": [
+          "Analyze the current prompt used for the Gemini API.",
+          "Research and gather 3-5 diverse examples of input images and their corresponding ideal Angular Material/Tailwind code output (.ts, .html, .scss).",
+          "Modify the prompt generation logic to include these examples (few-shot prompting). Structure them clearly within the prompt text.",
+          "Refine the textual instructions within the prompt: Explicitly state the requirement to use Material 3 components, use only Tailwind utilities for styling, specify desired code block formatting, and mention handling basic layouts (flex/grid).",
+          "Add logic to incorporate optional color hints (extracted by frontend, Task 2.10) into the prompt if they are provided in the request (e.g., \"Use these colors: primary=#XXXXXX...\").",
+          "Experiment with VLM parameters (`temperature`, `top_p`) via the `ai_service.py` calls if initial results lack consistency, aiming for a balance between accuracy and avoiding overly rigid outputs. Document optimal findings."
+        ],
+        "expected_results": [
+          {
+            "id": "2.1.1",
+            "test": "Review the code in `code_generator.py`.",
+            "expected": "Prompt generation function includes few-shot examples and refined instructions for Material 3, Tailwind, and formatting. Logic exists to add color hints if present in input."
+          },
+          {
+            "id": "2.1.2",
+            "test": "Send test image requests to the backend.",
+            "expected": "Generated code output shows improved adherence to using Angular Material components and Tailwind classes compared to Phase 1. Code structure is more consistent. Colors may reflect hints if provided (tested after Task 2.10)."
+          }
+        ]
+      },
+      {
+        "id": "2.2",
+        "title": "Frontend - Install & Configure Monaco Editor",
+        "goal": "Integrate the Monaco Editor library into the Angular frontend.",
+        "location": "frontend/",
+        "detailed_steps": [
+          "Stop the frontend development server if running.",
+          "Run `npm install ngx-monaco-editor` (or chosen Monaco wrapper library).",
+          "Run `npm install` to ensure dependencies are synchronized.",
+          "Follow the specific setup instructions for `ngx-monaco-editor` (e.g., configuring assets in `angular.json` if needed).",
+          "Restart the frontend development server (`ng serve`)."
+        ],
+        "expected_results": [
+          {
+            "id": "2.2.1",
+            "test": "Run `ng serve`.",
+            "expected": "Application compiles and runs without errors related to Monaco Editor installation or configuration."
+          }
+        ]
+      },
+      {
+        "id": "2.3",
+        "title": "Frontend - Create CodeViewer Component",
+        "goal": "Create a reusable component to display code using Monaco Editor.",
+        "location": "frontend/src/app/components/code-viewer/",
+        "detailed_steps": [
+          "Run `ng generate component components/CodeViewer --standalone`.",
+          "Import `CommonModule` and the Monaco Editor module (e.g., `MonacoEditorModule` from `ngx-monaco-editor`) in `code-viewer.component.ts`.",
+          "Define `@Input()` properties for `language` (string: 'typescript', 'html', 'scss'), `code` (string), and potentially `readOnly` (boolean, default true).",
+          "Define basic Monaco editor options (`editorOptions`) in the component's `.ts` file (e.g., `{ theme: 'vs-dark', language: this.language, readOnly: this.readOnly, minimap: { enabled: false }, automaticLayout: true }`).",
+          "Implement the template (`code-viewer.component.html`) using the Monaco editor directive (e.g., `<ngx-monaco-editor [options]=\"editorOptions\" [(ngModel)]=\"code\"></ngx-monaco-editor>`).",
+          "Add minimal styling in `code-viewer.component.scss` if needed (e.g., setting a height or border)."
+        ],
+        "expected_results": [
+          {
+            "id": "2.3.1",
+            "test": "Component files (`.ts`, `.html`, `.scss`) exist in the specified location.",
+            "expected": "Component structure is created with necessary imports and inputs. Template includes the Monaco directive."
+          }
+        ]
+      },
+      {
+        "id": "2.4",
+        "title": "Frontend - Implement Tabbed Code Display",
+        "goal": "Replace basic code display with a tabbed interface using the new CodeViewer component.",
+        "location": "frontend/src/app/pages/generator-page/",
+        "detailed_steps": [
+          "Import `MatTabsModule` in `generator-page.component.ts`.",
+          "Import the new `CodeViewerComponent` in `generator-page.component.ts`.",
+          "In `generator-page.component.html`, replace the existing `<pre>` tags or placeholders for code display.",
+          "Implement a `<mat-tab-group>`.",
+          "Inside the group, create three `<mat-tab>` elements with labels: 'TypeScript (.ts)', 'HTML (.html)', 'SCSS (.scss)'.",
+          "Within each `<mat-tab>`, embed the `<app-code-viewer>` component.",
+          "Bind the `[language]` input of each `app-code-viewer` to the appropriate string ('typescript', 'html', 'scss').",
+          "Bind the `[code]` input of each `app-code-viewer` to the corresponding property holding the generated code strings (e.g., `generatedTsCode`, `generatedHtmlCode`, `generatedScssCode`).",
+          "Ensure the component properties holding the code (`generatedTsCode`, etc.) are updated when the API response is received."
+        ],
+        "expected_results": [
+          {
+            "id": "2.4.1",
+            "test": "Generate code from an image.",
+            "expected": "Generated code appears within a tabbed interface. Each tab (TS, HTML, SCSS) displays the corresponding code in a Monaco Editor instance with syntax highlighting."
+          }
+        ]
+      },
+      {
+        "id": "2.5",
+        "title": "Frontend - Add 'Copy Code' Button",
+        "goal": "Allow users to easily copy the code from each editor tab.",
+        "location": "frontend/src/app/pages/generator-page/, frontend/src/app/components/code-viewer/",
+        "detailed_steps": [
+          "Import `MatButtonModule`, `MatIconModule`, `MatTooltipModule` in `generator-page.component.ts`.",
+          "Import `ClipboardModule` from `@angular/cdk/clipboard` in `generator-page.component.ts`.",
+          "Decide placement: Either add a button within each `<mat-tab>` content area *above* the `<app-code-viewer>` in `generator-page.component.html`, OR modify `CodeViewerComponent` to include the button internally.",
+          "**Option A (In GeneratorPage):**",
+          "  Add a `<button mat-icon-button>` within each tab's content.",
+          "  Use the `cdkCopyToClipboard` directive on the button, binding it to the respective code property (`generatedTsCode`, etc.).",
+          "  Add `<mat-icon>content_copy</mat-icon>` inside the button.",
+          "  Add `matTooltip=\"Copy Code\"` to the button.",
+          "**Option B (In CodeViewer):**",
+          "  Add the necessary imports (`MatButtonModule`, etc.) to `code-viewer.component.ts`.",
+          "  Add the button with `cdkCopyToClipboard` binding to `[code]` in `code-viewer.component.html` (e.g., positioned absolutely in a corner).",
+          "Implement feedback on copy (optional but recommended): Inject `MatSnackBar` in `GeneratorPageComponent` or `CodeViewerComponent` and call `snackBar.open('Code copied!', '', { duration: 2000 })` on successful copy (using the `(cdkCopyToClipboardCopied)` output event)."
+        ],
+        "expected_results": [
+          {
+            "id": "2.5.1",
+            "test": "Generate code and view the code tabs.",
+            "expected": "A 'Copy' icon button is visible within each code tab/viewer."
+          },
+          {
+            "id": "2.5.2",
+            "test": "Click the 'Copy' button.",
+            "expected": "The corresponding code is copied to the clipboard. Optional: A snackbar message appears confirming the copy."
+          }
+        ]
+      },
+      {
+        "id": "2.6",
+        "title": "Frontend - Improve Preview Static Rendering",
+        "goal": "Enhance the iframe preview to include Angular Material theme CSS for better visual accuracy.",
+        "location": "frontend/src/app/components/preview-pane/, frontend/src/assets/",
+        "detailed_steps": [
+          "Locate a prebuilt Angular Material theme CSS file (e.g., `indigo-pink.css`). You might find this in `node_modules/@angular/material/prebuilt-themes/`.",
+          "Copy the chosen theme CSS file (e.g., `indigo-pink.css`) into the `frontend/src/assets/` directory.",
+          "Ensure the `assets` directory is configured for inclusion in `angular.json` (usually default).",
+          "Create/Update the `PreviewPaneComponent` (`frontend/src/app/components/preview-pane/`).",
+          "Add an `@Input() generatedHtml: string;` and `@Input() generatedScss: string;` (Note: using SCSS directly in iframe is hard, focus on HTML+CSS).",
+          "In `preview-pane.component.ts`, create a method `updateSrcDoc()` or use a getter that constructs the `srcdoc` string.",
+          "The `srcdoc` string must include:",
+          "  - `<html><head>` tags.",
+          "  - `<link rel=\"stylesheet\" href=\"https://cdn.tailwindcss.com\">` (or your Tailwind setup).",
+          "  - `<link rel=\"stylesheet\" href=\"assets/indigo-pink.css\">` (relative path to the theme file in assets).",
+          "  - Potentially basic `<style>` tags for the minimal generated SCSS if simple.",
+          "  - `</head><body>` tags.",
+          "  - The `generatedHtml` content.",
+          "  - `</body></html>`.",
+          "Use Angular's `DomSanitizer` to bypass security for the `srcdoc` attribute.",
+          "Inject `DomSanitizer` in the constructor: `private sanitizer: DomSanitizer`.",
+          "Create a sanitized URL property: `get sanitizedSrcDoc() { return this.sanitizer.bypassSecurityTrustHtml(this.constructSrcDoc()); }` (where `constructSrcDoc` builds the string).",
+          "In `preview-pane.component.html`, bind the `iframe`'s `[srcdoc]` attribute: `<iframe [srcdoc]=\"sanitizedSrcDoc\"></iframe>`.",
+          "Ensure the `GeneratorPageComponent` passes the `generatedHtmlCode` to the `PreviewPaneComponent`."
+        ],
+        "expected_results": [
+          {
+            "id": "2.6.1",
+            "test": "Generate code for an image containing Angular Material components (e.g., a button).",
+            "expected": "The preview iframe renders the HTML structure. Basic Material component styles (button color, shape, ripple effect container) are applied correctly alongside Tailwind styles, looking closer to the intended Material design than in Phase 1."
+          },
+          {
+            "id": "2.6.2",
+            "test": "Check browser developer console.",
+            "expected": "No errors related to accessing the theme CSS file (e.g., 404). No errors related to `srcdoc` sanitization."
+          }
+        ]
+      },
+       {
+        "id": "2.7",
+        "title": "Frontend - Implement Basic Layout Structure",
+        "goal": "Structure the main page using a responsive multi-column layout and add a header.",
+        "location": "frontend/src/app/pages/generator-page/generator-page.component.html, frontend/src/app/app.component.html",
+        "detailed_steps": [
+          "Import `MatToolbarModule` in `app.component.ts` (if adding header there) or `generator-page.component.ts`.",
+          "**Header:** Add a `<mat-toolbar color=\"primary\">` to `app.component.html` (above `<router-outlet>`) or at the top of `generator-page.component.html`. Include the application title.",
+          "**Layout:** In `generator-page.component.html`:",
+          "  - Remove any existing basic layout.",
+          "  - Create a main container `div`.",
+          "  - Use TailwindCSS Flexbox or Grid utilities to create a responsive layout. Example (Tailwind Grid):",
+          "    `<div class=\"grid grid-cols-1 md:grid-cols-3 gap-4 p-4\">`",
+          "      `<div class=\"col-span-1\"> <!-- Input Column --> ... </div>`",
+          "      `<div class=\"col-span-1\"> <!-- Code Column (with MatTabGroup) --> ... </div>`",
+          "      `<div class=\"col-span-1\"> <!-- Preview Column --> ... </div>`",
+          "    `</div>`",
+          "  - Place the existing/updated input controls, the `<mat-tab-group>` for code, and the `<app-preview-pane>` within their respective columns.",
+          "  - Ensure the layout stacks vertically on smaller screens (`grid-cols-1` is the default).",
+          "Use `MatCard` (`MatCardModule`) optionally to wrap the content within each column for better visual separation."
+        ],
+        "expected_results": [
+          {
+            "id": "2.7.1",
+            "test": "View the application on a desktop browser.",
+            "expected": "The UI displays a header toolbar. Input controls, code tabs, and preview pane are arranged side-by-side in distinct columns (e.g., three columns)."
+          },
+          {
+            "id": "2.7.2",
+            "test": "Resize the browser window to a mobile width.",
+            "expected": "The layout adapts, stacking the input, code, and preview sections vertically."
+          }
+        ]
+      },
+      {
+        "id": "2.8",
+        "title": "Frontend - Improve Image Input Control",
+        "goal": "Enhance the image upload control for better usability.",
+        "location": "frontend/src/app/components/image-uploader/, frontend/src/app/pages/generator-page/",
+        "detailed_steps": [
+          "Import `MatButtonModule`, `MatFormFieldModule`, `MatInputModule`, `MatIconModule` in the relevant component (`ImageUploaderComponent` or `GeneratorPageComponent`).",
+          "**Styled Button:**",
+          "  - Keep the `<input type=\"file\">` element but hide it visually (`hidden` attribute or Tailwind's `sr-only` class).",
+          "  - Add a `ViewChild` in the component `.ts` to get a reference to the hidden input: `@ViewChild('fileInput') fileInputRef: ElementRef;`",
+          "  - Add a visible `<button mat-raised-button color=\"primary\">` (e.g., \"Upload Image\" with `<mat-icon>upload</mat-icon>`).",
+          "  - Add a `(click)` handler to the button that calls `this.fileInputRef.nativeElement.click();`.",
+          "  - Ensure the hidden file input still has the `(change)` event bound to the file selection logic.",
+          "**Display Selection:**",
+          "  - Add a `div` or `span` near the upload button.",
+          "  - Store the selected file name in a component property when a file is selected.",
+          "  - Use string interpolation `{{ selectedFileName }}` or `*ngIf` to display the filename once selected (e.g., \"Selected: my_mockup.png\"). Clear this when generation starts or finishes.",
+          "**(Optional) Drag and Drop:**",
+          "  - Create a visually distinct drop zone `div`.",
+          "  - Add CSS classes for styling (border, background on hover).",
+          "  - Use Angular event bindings `(dragover)`, `(dragleave)`, `(drop)` on the drop zone.",
+          "  - Implement event handlers to prevent default behavior and handle the dropped file (`event.dataTransfer.files`). Add/remove hover styling classes.",
+          "  - Ensure the dropped file is processed by the same logic as the file input change."
+        ],
+        "expected_results": [
+          {
+            "id": "2.8.1",
+            "test": "View the image input area.",
+            "expected": "A styled Material button is visible for uploading. The default browser file input is hidden."
+          },
+          {
+            "id": "2.8.2",
+            "test": "Click the button and select an image.",
+            "expected": "The file selection dialog opens. After selecting, the chosen filename is displayed near the button."
+          },
+          {
+            "id": "2.8.3",
+            "test": "(If Drag/Drop implemented) Drag an image file over the drop zone.",
+            "expected": "Visual feedback (e.g., border change) appears on the drop zone."
+          },
+           {
+            "id": "2.8.4",
+            "test": "(If Drag/Drop implemented) Drop the image file.",
+            "expected": "The filename is displayed, and the file is ready for processing."
+          }
+        ]
+      },
+      {
+        "id": "2.9",
+        "title": "Frontend - Implement Loading/Feedback States",
+        "goal": "Provide clear visual feedback to the user during API calls and show informative messages.",
+        "location": "frontend/src/app/pages/generator-page/",
+        "detailed_steps": [
+          "Import `MatProgressSpinnerModule` (or `MatProgressBarModule`) and `MatSnackBarModule` in `generator-page.component.ts`.",
+          "Inject `MatSnackBar` in the constructor.",
+          "Add a boolean property `isLoading = false;` to the component.",
+          "In `generator-page.component.html`:",
+          "  - Place `<mat-spinner *ngIf=\"isLoading\"></mat-spinner>` (or progress bar) in a prominent location (e.g., near the Generate button or overlaying an area).",
+          "  - Add the `[disabled]=\"isLoading\"` attribute to the main \"Generate Code\" button and potentially the input controls (image upload, Figma inputs later).",
+          "In the component logic (`generator-page.component.ts`):",
+          "  - Before making the API call (`apiService.generateCodeFromImage(...)`), set `this.isLoading = true;`.",
+          "  - After the API call completes (both success and error):",
+          "    - Set `this.isLoading = false;` within a `finally` block or equivalent.",
+          "  - On API success:",
+          "    - Optionally show a success snackbar: `this.snackBar.open('Code generated successfully!', 'Dismiss', { duration: 3000 });`",
+          "  - On API error:",
+          "    - Show an error snackbar with a user-friendly message: `this.snackBar.open('Error generating code. Please try again.', 'Dismiss', { duration: 5000 });`.",
+          "    - Log the actual error to the console for debugging.",
+          "Add a placeholder message in the Preview Pane component (`preview-pane.component.html`) using `*ngIf` when no code has been generated yet (e.g., `<div *ngIf=\"!generatedHtml\">Preview will appear here...</div>`)."
+        ],
+        "expected_results": [
+          {
+            "id": "2.9.1",
+            "test": "Click the 'Generate Code' button.",
+            "expected": "A loading spinner or progress bar appears. The 'Generate Code' button becomes disabled."
+          },
+          {
+            "id": "2.9.2",
+            "test": "Wait for code generation to succeed.",
+            "expected": "The loading indicator disappears. The button becomes enabled. Optional: A success message appears briefly."
+          },
+          {
+            "id": "2.9.3",
+            "test": "Trigger an error during code generation (e.g., invalid image, backend error).",
+            "expected": "The loading indicator disappears. The button becomes enabled. An informative error message appears via snackbar."
+          },
+          {
+            "id": "2.9.4",
+            "test": "Load the application initially.",
+            "expected": "The preview pane shows a placeholder message."
+          }
+        ]
+      },
+      {
+        "id": "2.10",
+        "title": "Frontend/Backend - Client-Side Color Extraction",
+        "goal": "Extract dominant colors from the uploaded image on the frontend and send them as hints to the backend.",
+        "location": "frontend/ (install), frontend/src/app/pages/generator-page/, frontend/src/app/services/api.service.ts, backend/app/models/image_input.py, backend/app/services/code_generator.py",
+        "detailed_steps": [
+          "**Frontend:**",
+          "  - Run `npm install color-thief-browser`.",
+          "  - In `GeneratorPageComponent` (or `ImageUploaderComponent`), after an image file is selected and loaded (e.g., into an `<img>` element for the library to read):",
+          "    - Import and instantiate `ColorThief`. `import ColorThief from 'color-thief-browser'; const colorThief = new ColorThief();`",
+          "    - Get the `<img>` element containing the preview.",
+          "    - Call `const dominantColor = colorThief.getColor(imgElement);` (returns RGB array).",
+          "    - Call `const palette = colorThief.getPalette(imgElement, 5);` (returns array of 5 RGB arrays).",
+          "    - Convert the RGB arrays to hex strings (create a helper function for this).",
+          "    - Store these hex color strings (e.g., `dominantHex`, `paletteHexArray`).",
+          "  - Modify `ApiService.generateCodeFromImage` method signature and implementation to accept an optional `colorHints` object (e.g., `{ dominant: string, palette: string[] }`).",
+          "  - Pass the extracted hex colors in the API request payload.",
+          "**Backend:**",
+          "  - Update the Pydantic request model (`backend/app/models/image_input.py`) to include an optional `color_hints: Optional[Dict[str, Any]] = None` field.",
+          "  - Update the API endpoint (`generate_image.py`) to receive and pass the `color_hints` to the `CodeGeneratorService`.",
+          "  - Ensure Task 2.1 (Backend Prompt Refinement) includes logic in `CodeGeneratorService` to check for `color_hints` and incorporate them into the generated VLM prompt if present."
+        ],
+        "expected_results": [
+          {
+            "id": "2.10.1",
+            "test": "Select an image in the frontend and monitor the browser's network tab.",
+            "expected": "The API request payload to `/api/generate-from-image` includes a `color_hints` field containing extracted hex color codes."
+          },
+          {
+            "id": "2.10.2",
+            "test": "Generate code from a colorful image.",
+            "expected": "The generated code (specifically Tailwind color classes like `bg-[#...], text-[#...]`) shows evidence of using the extracted colors as hints, potentially improving color accuracy compared to relying solely on the VLM's interpretation."
+          }
+        ]
+      }
+    ]
+  }

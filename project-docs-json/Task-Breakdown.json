@@ -1,0 +1,108 @@
+{
+  "title": "MVP Task List: Screenshot to Angular Code Generator",
+  "project_goal": "Build a Minimum Viable Product (MVP) of an application that takes an image (screenshot/mockup) as input and generates corresponding Angular component code (TypeScript, HTML, SCSS) using AI (primarily Google's Gemini API), styled with Angular Material and TailwindCSS. The MVP will display the generated code and a basic static preview.",
+  "target_audience": "AI Agents / Developers implementing the MVP.",
+  "instructions": "Complete the following tasks sequentially. Each task includes detailed steps and test cases to verify completion.",
+  "tasks": [
+    {
+      "id": "1.1",
+      "title": "Backend - Project Setup & Basic App",
+      "goal": "Initialize the FastAPI project structure and have a minimal running server with CORS and a health check endpoint.",
+      "location": "backend/",
+      "detailed_steps": [
+        "Create the main `backend` directory.",
+        "Inside `backend`, create the directory structure: `app/`, `app/api/`, `app/api/v1/`, `app/core/`, `app/models/`, `app/services/`.",
+        "Create empty `__init__.py` files in `app`, `app/api`, `app/api/v1`, `app/core`, `app/models`, `app/services`.",
+        "Create `app/main.py`.",
+        "Create `app/core/config.py`.",
+        "Create `requirements.txt`.",
+        "Create `.env.example` (can be empty initially).",
+        "Add dependencies to `requirements.txt`.",
+        "Run `pip install -r requirements.txt`. (Ideally within a virtual environment).",
+        "Implement `backend/app/core/config.py`.",
+        "Implement `backend/app/main.py`."
+      ],
+      "expected_results": [
+        {
+          "id": "1.1.1",
+          "test": "Navigate to the `backend` directory."
+        },
+        {
+          "id": "1.1.2",
+          "test": "Run `pip install -r requirements.txt` (within a virtual environment is recommended).",
+          "expected": "Command completes successfully without errors."
+        },
+        {
+          "id": "1.1.3",
+          "test": "Run `uvicorn app.main:app --reload --port 8000`.",
+          "expected": "Server starts without errors, logs indicate listening on `http://0.0.0.0:8000`. Log message about `.env` file status should appear."
+        },
+        {
+          "id": "1.1.4",
+          "test": "Access `http://localhost:8000/health` in a browser or via `curl`.",
+          "expected": "Response body is `{\"status\": \"ok\"}` with status code `200`."
+        },
+        {
+          "id": "1.1.5",
+          "test": "Access `http://localhost:8000/docs` in a browser.",
+          "expected": "FastAPI Swagger UI loads successfully, showing the `/health` endpoint."
+        }
+      ]
+    },
+    {
+      "id": "1.2",
+      "title": "Frontend - Project Setup & Basic UI Shell",
+      "goal": "Initialize the Angular project with Material & Tailwind, create the main page shell, and ensure basic styling works.",
+      "location": "frontend/ (relative to project root)",
+      "detailed_steps": [
+        "Navigate to the project root directory (containing the `backend` folder).",
+        "Run `ng new frontend --standalone --routing=true --style=scss --skip-tests`. Respond `N` or `false` to SSR for MVP simplicity.",
+        "Navigate into the new directory: `cd frontend`.",
+        "Run `ng add @angular/material`. Choose a theme (e.g., Indigo/Pink), set up Typography (Yes), include Animations (Yes).",
+        "Run `npm install -D tailwindcss postcss autoprefixer`.",
+        "Run `npx tailwindcss init -p`. This creates `tailwind.config.js` and `postcss.config.js`.",
+        "Configure `frontend/tailwind.config.js`.",
+        "Configure `frontend/src/styles.scss`.",
+        "Run `ng generate component pages/GeneratorPage --standalone`.",
+        "Configure `frontend/src/app/app.routes.ts`.",
+        "Replace the content in `frontend/src/app/app.component.html` with just `<router-outlet></router-outlet>`.",
+        "Add basic placeholder content and apply a Tailwind class in `frontend/src/app/pages/generator-page/generator-page.component.html`.",
+        "Ensure `CommonModule` is imported in `generator-page.component.ts` if needed for directives."
+      ],
+      "expected_results": [
+        {
+          "id": "1.2.1",
+          "test": "Run `npm install` inside the `frontend` directory.",
+          "expected": "Command completes successfully without errors."
+        },
+        {
+          "id": "1.2.2",
+          "test": "Run `ng serve`.",
+          "expected": "Application compiles and runs without errors. Browser opens (or navigate manually) to `http://localhost:4200`."
+        },
+        {
+          "id": "1.2.3",
+          "test": "View `http://localhost:4200`.",
+          "expected": "See a title bar with \"Screenshot to Angular Code Generator\" styled with Tailwind classes (large text, bold, centered, indigo background, white text). See the placeholder sections below with titles. No console errors in the browser's developer tools related to setup."
+        }
+      ]
+    },
+    {
+      "id": "1.3",
+      "title": "Frontend - Image Upload Component",
+      "goal": "Create a reusable UI component to allow users to select an image file and emit the selection.",
+      "location": "frontend/src/app/components/image-uploader/, frontend/src/app/pages/generator-page/",
+      "detailed_steps": [
+        "Run `ng generate component components/ImageUploader --standalone`.",
+        "Import `MatButtonModule` and `CommonModule` in image-uploader.component.ts.",
+        "Implement onFileSelected method.",
+        "Add file input and button UI in image-uploader.component.html.",
+        "Style the component using Tailwind classes.",
+        "Add preview functionality.",
+        "Use the component in the generator page.",
+        "Implement generator page component to handle the emitted file."
+      ],
+      "note": "This is a simplified representation. The actual task would include more detailed steps and code samples."
+    }
+  ]
+} 

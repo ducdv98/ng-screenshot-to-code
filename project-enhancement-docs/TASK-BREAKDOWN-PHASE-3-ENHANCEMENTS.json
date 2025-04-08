@@ -1,0 +1,160 @@
+{
+    "title": "Phase 3 Enhancement Task List: Improving Figma Integration",
+    "phase_goal": "Enhance the implemented Figma-to-Code feature by adding frame/node selection, basic component mapping recognition, and improved feedback mechanisms.",
+    "target_audience": "AI Agents / Developers implementing enhancements after core Phase 3 functionality is complete.",
+    "prerequisites": "Core Figma integration (fetching file, basic node/style parsing, initial code generation - Tasks 3.1-3.4 from PHASE-3-FIGMA-INTEGRATION.md) should be functional.",
+    "instructions": "Implement these enhancements to improve the Figma integration capabilities. Tasks can potentially be done in parallel but depend on the core Phase 3 logic.",
+    "tasks": [
+      {
+        "id": "3.E1",
+        "title": "Backend - Figma Node Tree Structure Endpoint",
+        "goal": "Create a backend endpoint that returns a simplified tree structure of selectable frames/components from a Figma file.",
+        "location": "backend/app/api/v1/endpoints/ (new file, e.g., figma_structure.py), backend/app/services/figma_service.py",
+        "detailed_steps": [
+          "Define a new Pydantic model for the simplified node structure (e.g., `FigmaNodeInfo { id: str, name: str, type: str, children: List[FigmaNodeInfo] }`).",
+          "Create a new API endpoint (e.g., `GET /api/v1/figma-structure/{file_key}`). This endpoint will require authentication (e.g., user's Figma token).",
+          "Add a new method to `FigmaService` (e.g., `get_selectable_nodes(file_key: str, token: str)`).",
+          "Inside this service method:",
+          "  - Fetch the full Figma file data using the existing `get_figma_file_data` method.",
+          "  - Parse the document structure, focusing on top-level CANVAS children (usually Frames or Components).",
+          "  - Recursively build a *simplified* tree containing only relevant nodes for selection (e.g., FRAMEs, COMPONENTs, COMPONENT_SETs), including their `id`, `name`, and `type`.",
+          "  - Return this simplified tree structure matching the Pydantic model.",
+          "Handle errors during file fetching or parsing."
+        ],
+        "expected_results": [
+          {
+            "id": "3.E1.1",
+            "test": "Call the new endpoint (`/api/v1/figma-structure/{file_key}`) with a valid Figma file key and token.",
+            "expected": "The API returns a JSON response representing a simplified tree of Frames/Components within that Figma file, containing node IDs and names."
+          },
+          {
+            "id": "3.E1.2",
+            "test": "Call the endpoint with an invalid key or token.",
+            "expected": "Appropriate HTTP error (e.g., 401, 404, 500) is returned with a meaningful error message."
+          }
+        ]
+      },
+      {
+        "id": "3.E2",
+        "title": "Frontend - Figma Node Selection UI",
+        "goal": "Allow users to select a specific Frame or top-level Component from the Figma file to generate code for.",
+        "location": "frontend/src/app/components/figma-input/, frontend/src/app/services/api.service.ts, frontend/src/app/pages/generator-page/",
+        "detailed_steps": [
+          "**UI Component (`FigmaInputComponent`):**",
+          "  - Add a section (e.g., below the URL input) that appears *after* a valid Figma URL/token is provided and the structure is fetched.",
+          "  - Use a dropdown (`MatSelect`), tree component (`MatTree` if structure is nested), or a simple list (`MatList`) to display the selectable nodes (Frames/Components) received from the backend (Task 3.E1).",
+          "  - Store the `id` of the user-selected node.",
+          "  - Add a button or trigger mechanism (e.g., list item click) to fetch the node structure.",
+          "**API Service (`ApiService`):**",
+          "  - Add a new method `getFigmaStructure(fileKey: string, token: string)` to call the backend endpoint from Task 3.E1.",
+          "  - Modify `generateCodeFromFigma` to accept an optional `nodeId: string` parameter.",
+          "  - Update the payload sent to the backend `POST /api/v1/generate-from-figma` to include the selected `nodeId`.",
+          "**Page Logic (`GeneratorPageComponent`):**",
+          "  - When a valid Figma URL/token is available, call `apiService.getFigmaStructure`.",
+          "  - Populate the `FigmaInputComponent`'s selection UI with the fetched node data.",
+          "  - When the user triggers generation, pass the selected `nodeId` (along with URL/token) to `apiService.generateCodeFromFigma`.",
+          "Handle loading states while fetching the structure and potential errors."
+        ],
+        "expected_results": [
+          {
+            "id": "3.E2.1",
+            "test": "Enter a valid Figma URL and token.",
+            "expected": "A list or tree of selectable Frames/Components from that Figma file appears in the UI."
+          },
+          {
+            "id": "3.E2.2",
+            "test": "Select a specific Frame/Component and click 'Generate Code'. Monitor network request.",
+            "expected": "The API call to `/api/generate-from-figma` includes the `nodeId` of the selected Frame/Component in its payload."
+          }
+        ]
+      },
+      {
+        "id": "3.E3",
+        "title": "Backend - Target Specific Figma Node for Generation",
+        "goal": "Modify the code generation logic to start parsing from a specific Figma Node ID provided in the request.",
+        "location": "backend/app/api/v1/endpoints/generate_figma.py, backend/app/services/code_generator.py",
+        "detailed_steps": [
+          "Update the Pydantic request model for `/api/generate-from-figma` to accept an optional `node_id: Optional[str] = None`.",
+          "In the `generate_figma.py` endpoint, receive the `node_id` from the request.",
+          "Modify the `CodeGeneratorService` method responsible for Figma generation (e.g., `generate_code_from_figma_data`) to accept the `node_id`.",
+          "Inside the service:",
+          "  - After fetching the full Figma file data, implement logic to find the specific node object within the document tree using the provided `node_id`.",
+          "  - If `node_id` is provided and found, start the recursive parsing/mapping process (developed in core Phase 3) from that specific node.",
+          "  - If `node_id` is not provided or not found, fall back to the default behavior (e.g., parsing the first Frame on the first Canvas).",
+          "Handle the case where the provided `node_id` doesn't exist in the fetched file data (return an appropriate error)."
+        ],
+        "expected_results": [
+          {
+            "id": "3.E3.1",
+            "test": "Make an API request to `/api/generate-from-figma` including a valid `node_id`.",
+            "expected": "The generated code output corresponds specifically to the structure and styling of the Figma node identified by `node_id`, not the entire page or default frame."
+          },
+          {
+            "id": "3.E3.2",
+            "test": "Make an API request with a `node_id` that doesn't exist in the file.",
+            "expected": "The API returns an error (e.g., 404 or 400) indicating the node was not found."
+          }
+        ]
+      },
+      {
+        "id": "3.E4",
+        "title": "Backend - Basic Figma Component Recognition",
+        "goal": "Identify Figma nodes that are instances of Components and add distinguishing information during parsing.",
+        "location": "backend/app/services/code_generator.py",
+        "detailed_steps": [
+          "In the recursive node parsing logic within `CodeGeneratorService`:",
+          "  - Check the `type` of the current node.",
+          "  - If the `type` is `INSTANCE`:",
+          "    - Access its `componentId` property.",
+          "    - Fetch the corresponding main component definition from the file data's `components` dictionary (`figma_file_data['components'][node.componentId]`).",
+          "    - Extract the main component's `name`.",
+          "    - **Enhancement:** Instead of just parsing the instance's internal structure blindly, add a specific HTML comment or a data attribute to the generated HTML element indicating it was derived from a Figma component instance.",
+          "      Example HTML output: `<!-- Figma Component: ButtonPrimary --> <div class=\"...\">...</div>` or `<div data-figma-component=\"ButtonPrimary\" class=\"...\">...</div>`.",
+          "    - *Note: This step doesn't automatically map to Angular components yet, but provides a hook for future, more advanced mapping or user interpretation.*",
+          "    - Continue parsing the instance's children as before for now."
+        ],
+        "expected_results": [
+          {
+            "id": "3.E4.1",
+            "test": "Generate code from a Figma file containing instances of user-defined components.",
+            "expected": "The generated HTML includes comments or data attributes (`data-figma-component=\"ComponentName\"`) on the elements corresponding to the Figma component instances."
+          }
+        ]
+      },
+      {
+        "id": "3.E5",
+        "title": "Backend & Frontend - Improved Mapping Error Feedback",
+        "goal": "Provide users with feedback if certain Figma elements or styles could not be accurately translated.",
+        "location": "backend/app/services/code_generator.py, backend/app/models/generated_code.py, frontend/src/app/pages/generator-page/",
+        "detailed_steps": [
+          "**Backend:**",
+          "  - In `code_generator.py`'s Figma parsing logic, whenever an unsupported node type, property (e.g., complex effect), or style is encountered:",
+          "    - Instead of failing silently, log a warning message internally.",
+          "    - Collect these warnings into a list of strings during the parsing process.",
+          "  - Modify the backend response model (`GeneratedCode` in `generated_code.py`) to include an optional field: `warnings: Optional[List[str]] = None`.",
+          "  - Include the collected list of warnings in the API response when returning the generated code.",
+          "**Frontend:**",
+          "  - Update the corresponding frontend model (`GeneratedCode` in `generated-code.model.ts`) to include `warnings?: string[];`.",
+          "  - In `GeneratorPageComponent`:",
+          "    - After receiving a successful API response, check if the `warnings` array exists and is not empty.",
+          "    - If warnings exist, display them to the user in a noticeable but non-intrusive way.",
+          "      - Use a `MatExpansionPanel` titled 'Generation Warnings' below the code tabs.",
+          "      - Use a non-dismissible `MatSnackBar` with a message like 'Code generated with warnings. See details.'",
+          "      - Display the list of warnings using `*ngFor` within the chosen UI element.",
+          "    - Ensure the warnings area is cleared before a new generation request."
+        ],
+        "expected_results": [
+          {
+            "id": "3.E5.1",
+            "test": "Generate code from a Figma file containing elements known to be unsupported by the current mapping logic (e.g., certain blend modes, vector networks if not handled).",
+            "expected": "The code is generated, but a list of warning messages appears in the frontend UI, indicating which elements or styles were potentially ignored or misinterpreted."
+          },
+          {
+            "id": "3.E5.2",
+            "test": "Generate code from a simple, fully supported Figma design.",
+            "expected": "No warning messages are displayed in the UI."
+          }
+        ]
+      }
+    ]
+  }

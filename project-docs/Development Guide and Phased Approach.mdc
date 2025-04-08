@@ -15,12 +15,13 @@ Development Guide / Phased Approach
     *   Setup a basic Node.js/Express or Python/FastAPI backend.
     *   Create an endpoint (`/api/generate-from-image`) that accepts POST requests with image data (e.g., multipart/form-data).
 4.  **AI Integration (Backend):**
-    *   Install AI SDK (OpenAI/Anthropic).
+    *   Install Google Generative AI SDK as primary AI service (`@google/generative-ai` npm package or `google-generativeai` Python package).
+    *   Optionally install alternative AI SDKs (OpenAI/Anthropic) as fallbacks.
     *   In the endpoint:
         *   Receive the image.
         *   Convert image to base64.
         *   Craft an initial **detailed prompt** specifying the goal: "Analyze this image. Generate an Angular component (.ts, .html, .scss) that replicates the layout and appearance. Use Angular Material components (like mat-button, mat-card, mat-input-field) where appropriate. Use TailwindCSS classes for all styling (layout, colors, typography, spacing). Provide the output as three separate code blocks for component.ts, component.html, and component.scss."
-        *   Send the image and prompt to the VLM API.
+        *   Send the image and prompt to the Gemini API (or fallback VLM API if needed).
         *   Receive the text response.
 5.  **Frontend-Backend Communication:**
     *   Frontend calls the backend API upon image upload.
@@ -37,8 +38,8 @@ Development Guide / Phased Approach
 **Phase 2: Enhancing Accuracy, Preview, and UI**
 
 1.  **Improve Prompt Engineering:**
-    *   Experiment heavily with prompts. Include examples of desired output format (few-shot). Specify Material 3 usage. Emphasize Tailwind utility classes.
-    *   Try different VLM models to compare results and cost.
+    *   Experiment heavily with prompts for Gemini 1.5 Pro/Flash models. Include examples of desired output format (few-shot). Specify Material 3 usage. Emphasize Tailwind utility classes.
+    *   If needed, try different VLM models (like Claude or GPT-4V) to compare results and cost, but maintain Gemini as the primary choice.
 2.  **Integrate Code Editor:**
     *   Replace `<pre>` tags with Monaco Editor instances for better code highlighting, formatting, and potential editing.
 3.  **Improve Preview:**
@@ -70,7 +71,7 @@ Development Guide / Phased Approach
 
 **Phase 4: Polish, Testing & Advanced Features**
 
-1.  **Error Handling:** Implement robust error handling for API calls (AI, Figma), image processing, and code generation.
+1.  **Error Handling:** Implement robust error handling for API calls (Gemini AI, Figma), image processing, and code generation.
 2.  **User Experience:** Refine loading states, progress indicators, clear error messages.
 3.  **Code Editing & Refinement:** Allow users to edit the generated code directly in the Monaco editors and update the preview.
 4.  **Component Splitting (Advanced):** Explore techniques (potentially rule-based or another AI prompt) to suggest how the generated code could be split into smaller, reusable components.

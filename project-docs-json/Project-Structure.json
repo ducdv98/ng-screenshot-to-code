@@ -1,0 +1,241 @@
+{
+  "title": "Project Structure",
+  "introduction": "A clear project structure for your Angular + FastAPI application, designed to be understandable for implementation, potentially by other developers or AI agents. This structure separates the frontend (Angular) and backend (FastAPI) concerns logically.",
+  "structure": {
+    "root": {
+      "name": "angular-screenshot-to-code/",
+      "backend": {
+        "name": "backend/",
+        "description": "FastAPI Backend Application",
+        "contents": {
+          "app/": {
+            "description": "Core application source code",
+            "contents": {
+              "__init__.py": {},
+              "api/": {
+                "description": "API Routers/Endpoints",
+                "contents": {
+                  "__init__.py": {},
+                  "v1/": {
+                    "description": "API Version 1",
+                    "contents": {
+                      "__init__.py": {},
+                      "endpoints/": {
+                        "description": "",
+                        "contents": {
+                          "__init__.py": {},
+                          "generate_image.py": { "description": "Endpoint for image -> code" },
+                          "generate_figma.py": { "description": "Endpoint for figma -> code" }
+                        }
+                      },
+                      "router.py": { "description": "Aggregates all v1 endpoints" }
+                    }
+                  }
+                }
+              },
+              "core/": {
+                "description": "Core components (config, dependencies)",
+                "contents": {
+                  "__init__.py": {},
+                  "config.py": { "description": "Application settings (API keys via env vars)" }
+                }
+              },
+              "models/": {
+                "description": "Pydantic Models for data validation/serialization",
+                "contents": {
+                  "__init__.py": {},
+                  "image_input.py": { "description": "Models for image processing requests" },
+                  "figma_input.py": { "description": "Models for Figma processing requests" },
+                  "generated_code.py": { "description": "Models for the code generation response" }
+                }
+              },
+              "services/": {
+                "description": "Business logic layer",
+                "contents": {
+                  "__init__.py": {},
+                  "ai_service.py": { "description": "Logic for interacting with VLM (OpenAI/Anthropic)" },
+                  "figma_service.py": { "description": "Logic for interacting with Figma API" },
+                  "code_generator.py": { "description": "Logic for structuring prompts and processing AI/Figma data into code strings" }
+                }
+              },
+              "utils/": {
+                "description": "Utility functions",
+                "contents": {
+                  "__init__.py": {},
+                  "image_processing.py": { "description": "Image handling utilities (e.g., base64 conversion)" }
+                }
+              },
+              "main.py": { "description": "FastAPI app creation, middleware, mounting routers" }
+            }
+          },
+          "tests/": {
+            "description": "Backend tests (Unit, Integration)",
+            "contents": {
+              "__init__.py": {},
+              "conftest.py": { "description": "Pytest fixtures" },
+              "test_api/": { "description": "API endpoint tests" },
+              "test_services/": { "description": "Service layer tests" }
+            }
+          },
+          ".env.example": { "description": "Example environment variables (API keys, etc.)" },
+          ".gitignore": {},
+          "Dockerfile": { "description": "To containerize the backend (optional but recommended)" },
+          "requirements.txt": { "description": "Python dependencies (fastapi, uvicorn, openai, anthropic, python-dotenv, requests, Pillow, etc.)" },
+          "README.md": { "description": "Backend specific documentation" }
+        }
+      },
+      "frontend": {
+        "name": "frontend/",
+        "description": "Angular Frontend Application",
+        "contents": {
+          "src/": {
+            "description": "Angular source code",
+            "contents": {
+              "app/": {
+                "description": "Core application module and components",
+                "contents": {
+                  "components/": {
+                    "description": "Reusable UI components",
+                    "contents": {
+                      "code-viewer/": {
+                        "description": "Component to display generated code (using Monaco)",
+                        "contents": {
+                          "code-viewer.component.html": {},
+                          "code-viewer.component.scss": {},
+                          "code-viewer.component.ts": {}
+                        }
+                      },
+                      "image-uploader/": { 
+                        "description": "Component for handling image uploads",
+                        "contents": { "...": {} }
+                      },
+                      "figma-input/": { 
+                        "description": "Component for handling Figma input",
+                        "contents": { "...": {} }
+                      },
+                      "preview-pane/": { 
+                        "description": "Component to render the live preview",
+                        "contents": { "...": {} }
+                      }
+                    }
+                  },
+                  "pages/": {
+                    "description": "Top-level page components (or features)",
+                    "contents": {
+                      "generator-page/": {
+                        "description": "Main page housing the generator UI",
+                        "contents": {
+                          "generator-page.component.html": { "description": "Layout combining uploader, code viewer, preview" },
+                          "generator-page.component.scss": {},
+                          "generator-page.component.ts": {}
+                        }
+                      }
+                    }
+                  },
+                  "services/": {
+                    "description": "Angular services",
+                    "contents": {
+                      "api.service.ts": { "description": "Service for making HTTP calls to the backend API" },
+                      "preview.service.ts": { "description": "Service to manage the preview rendering logic" }
+                    }
+                  },
+                  "models/": {
+                    "description": "TypeScript interfaces/types for data structures",
+                    "contents": {
+                      "generated-code.model.ts": { "description": "Interface matching backend's GeneratedCode response" },
+                      "api-request.model.ts": { "description": "Interfaces for API request payloads" }
+                    }
+                  },
+                  "app.component.html": { "description": "Main application template (often contains <router-outlet>)" },
+                  "app.component.scss": {},
+                  "app.component.ts": {},
+                  "app.config.ts": { "description": "Standalone App Config (routes, providers)" },
+                  "app.routes.ts": { "description": "Application routes" }
+                }
+              },
+              "assets/": { "description": "Static assets (images, fonts, etc.)" },
+              "environments/": { "description": "Environment configuration (dev, prod) -> backend API URL" },
+              "main.ts": { "description": "Main application entry point" },
+              "styles.scss": { "description": "Global styles, TailwindCSS imports (@tailwind base, components, utilities)" },
+              "index.html": { "description": "Main HTML page" }
+            }
+          },
+          ".editorconfig": {},
+          ".gitignore": {},
+          "angular.json": { "description": "Angular CLI workspace configuration" },
+          "package.json": { "description": "Node.js dependencies (Angular, Material, Tailwind, Monaco Editor, etc.)" },
+          "package-lock.json": {},
+          "postcss.config.js": { "description": "PostCSS configuration (for Tailwind)" },
+          "tailwind.config.js": { "description": "TailwindCSS configuration" },
+          "tsconfig.app.json": { "description": "TypeScript configuration for the app" },
+          "tsconfig.json": { "description": "Base TypeScript configuration" },
+          "tsconfig.spec.json": { "description": "TypeScript configuration for tests" },
+          "README.md": { "description": "Frontend specific documentation" }
+        }
+      },
+      "README.md": { "description": "Main project README" }
+    }
+  },
+  "explanation": {
+    "root_directory": {
+      "title": "Root Directory (`angular-screenshot-to-code/`)",
+      "description": "Contains the `backend/` and `frontend/` subdirectories. The main `README.md` provides an overview of the entire project, setup instructions for both frontend and backend, and how to run them together."
+    },
+    "backend_directory": {
+      "title": "Backend Directory (`backend/`)",
+      "technology": "Python with FastAPI",
+      "components": {
+        "entry_point": "`app/main.py`. This file initializes the FastAPI application, includes CORS middleware (essential for communication with the frontend running on a different port/domain), and mounts the API routers defined in `app/api/v1/router.py`.",
+        "api_endpoints": {
+          "title": "API Endpoints (`app/api/v1/endpoints/`)",
+          "description": "Contains the core logic for handling HTTP requests.",
+          "files": {
+            "generate_image.py": "Handles POST requests with image data. It will likely receive the image file, use `services/ai_service.py` and `services/code_generator.py` to get the code, and return it.",
+            "generate_figma.py": "Handles POST requests with Figma URL/token. It will use `services/figma_service.py` and `services/code_generator.py` to get the code and return it."
+          }
+        },
+        "services": {
+          "title": "Services (`app/services/`)",
+          "description": "Contains the primary business logic, decoupled from the API layer.",
+          "files": {
+            "ai_service.py": "Responsible *only* for communicating with the external VLM API (sending prompts/images, receiving responses). Takes pre-formatted prompts and image data.",
+            "figma_service.py": "Responsible *only* for communicating with the Figma API (fetching file data).",
+            "code_generator.py": "This is crucial. It takes input (image description/analysis from AI service, or structured Figma data from Figma service) and contains the logic/prompting strategy to format the final Angular component code (`.ts`, `.html`, `.scss`) using Angular Material and Tailwind. It orchestrates calls to the AI service if needed for image processing."
+          }
+        },
+        "models": "Pydantic models define the expected structure of request bodies and response bodies, ensuring data validation.",
+        "core": "Handles configuration loading, especially sensitive data like API keys from environment variables (`config.py`).",
+        "dependencies": "Defined in `requirements.txt`. Install using `pip install -r requirements.txt`.",
+        "environment_variables": "API keys (OpenAI, Anthropic, Figma) *must* be stored in environment variables, not hardcoded. `.env.example` shows which variables are needed. Use a library like `python-dotenv` for local development.",
+        "running": "Typically run using `uvicorn app.main:app --reload` during development."
+      }
+    },
+    "frontend_directory": {
+      "title": "Frontend Directory (`frontend/`)",
+      "technology": "Angular (using Standalone Components pattern recommended)",
+      "components": {
+        "entry_point": "`src/main.ts`. Bootstraps the Angular application.",
+        "configuration": "`angular.json` (build/serve), `tailwind.config.js`, `postcss.config.js`, `src/styles.scss` (Tailwind/global styles).",
+        "core_component": "`src/app/app.component.ts` (root component), configured in `src/app/app.config.ts`.",
+        "routing": "Defined in `src/app/app.routes.ts`. Likely points to `GeneratorPageComponent`.",
+        "main_ui": "`src/app/pages/generator-page/`. This component orchestrates the user interface, containing the upload/input components, the code display areas, and the preview area. It interacts with the `ApiService`.",
+        "reusable_components": "`src/app/components/`. Encapsulate specific UI elements like the image uploader, the Monaco-based code viewers, and the preview pane (which might render content in an `iframe` using `srcdoc`).",
+        "api_communication": "`src/app/services/api.service.ts`. Contains methods (e.g., `generateCodeFromImage(file: File)`, `generateCodeFromFigma(url: string)`) that use Angular's `HttpClient` to send requests to the FastAPI backend endpoints. It fetches the backend URL from `src/environments/`.",
+        "preview_logic": "`src/app/services/preview.service.ts`. May handle the logic for taking the generated HTML/CSS strings and safely rendering them in the `PreviewPaneComponent`.",
+        "models": "`src/app/models/`. TypeScript interfaces that define the structure of data exchanged with the backend API (should match backend Pydantic models).",
+        "dependencies": "Defined in `package.json`. Install using `npm install`.",
+        "running": "Typically run using `ng serve` during development."
+      }
+    },
+    "development_workflow": {
+      "title": "Development Workflow",
+      "steps": [
+        "Run the backend server (e.g., `cd backend && uvicorn app.main:app --reload`).",
+        "Run the frontend server (e.g., `cd frontend && ng serve`).",
+        "Ensure the frontend's environment configuration points to the correct backend URL (e.g., `http://localhost:8000`).",
+        "Ensure the backend has CORS configured correctly to allow requests from the frontend's origin (e.g., `http://localhost:4200`)."
+      ],
+      "conclusion": "This structure provides a solid foundation, separating concerns and using standard conventions for both FastAPI and Angular development."
+    }
+  }
+} 

@@ -10,14 +10,16 @@ Technology Stack
 *   **Backend:**
     *   **Language/Framework:** Node.js with Express.js or NestJS (Good TypeScript support, async handling, large ecosystem) OR Python with FastAPI or Flask (Excellent AI/ML libraries, good async)
     *   **AI Integration:**
-        *   OpenAI API Client Library (`openai` npm package or Python equivalent)
-        *   Anthropic API Client Library (`@anthropic-ai/sdk` npm package or Python equivalent)
+        *   Google Generative AI SDK (`@google/generative-ai` npm package or `google-generativeai` Python package) - DEFAULT
+        *   OpenAI API Client Library (`openai` npm package or Python equivalent) - ALTERNATIVE
+        *   Anthropic API Client Library (`@anthropic-ai/sdk` npm package or Python equivalent) - ALTERNATIVE
     *   **Figma Integration:**
         *   Official Figma API
         *   Node library like `figma-js` or Python equivalent.
 *   **AI Model:**
-    *   GPT-4 Vision (High capability, higher cost)
-    *   Claude 3 Opus/Sonnet/Haiku (Strong vision capabilities, potentially better cost/performance balance - Sonnet/Haiku)
+    *   Google Gemini 1.5 Pro/Flash (Default, strong vision capabilities with good cost efficiency)
+    *   GPT-4 Vision (Alternative, high capability, higher cost)
+    *   Claude 3 Opus/Sonnet/Haiku (Alternative, strong vision capabilities, potentially better cost/performance balance - Sonnet/Haiku)
 *   **Database (Optional):**
     *   PostgreSQL or MongoDB (If user accounts, saving generated components, usage tracking are needed)
 *   **Deployment:**
