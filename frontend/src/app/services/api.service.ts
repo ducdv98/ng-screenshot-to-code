@@ -31,13 +31,13 @@ export class ApiService {
       formData.append('color_hints', JSON.stringify(colorHints));
     }
 
-    return this.http.post<GeneratedCode>(`${this.apiUrl}/generate-image`, formData);
+    return this.http.post<GeneratedCode>(`${this.apiUrl}/generate-image/`, formData);
   }
 
   /**
    * Generate Angular component from a Figma design
    */
   generateCodeFromFigma(figmaInput: FigmaInput): Observable<GeneratedCode> {
-    return this.http.post<GeneratedCode>(`${this.apiUrl}/generate-figma`, figmaInput);
+    return this.http.post<GeneratedCode>(`${this.apiUrl}/generate-figma/`, figmaInput);
   }
 } 

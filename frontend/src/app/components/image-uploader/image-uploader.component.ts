@@ -40,8 +40,17 @@ export class ImageUploaderComponent {
   dominantColor: string | null = null;
   colorPalette: string[] = [];
   
-  private colorThief = new ColorThief();
+  private colorThief: any;
   private currentFile: File | null = null;
+  
+  constructor() {
+    try {
+      this.colorThief = new ColorThief();
+    } catch (error) {
+      console.error('Failed to initialize ColorThief:', error);
+      this.colorThief = null;
+    }
+  }
   
   // Add keyboard support for the drop zone
   @HostListener('keydown.space', ['$event'])
@@ -155,13 +164,19 @@ export class ImageUploaderComponent {
     img.crossOrigin = 'Anonymous';
     img.onload = () => {
       try {
-        // Extract dominant color
-        const dominantRgb = this.colorThief.getColor(img);
-        this.dominantColor = this.rgbToHex(dominantRgb);
-        
-        // Extract color palette (5 colors)
-        const paletteRgb = this.colorThief.getPalette(img, 5);
-        this.colorPalette = paletteRgb.map((rgb: number[]) => this.rgbToHex(rgb));
+        // Check if image is fully loaded and has proper dimensions
+        if (img.complete && img.naturalWidth > 0 && img.naturalHeight > 0 && this.colorThief) {
+          // Extract dominant color
+          const dominantRgb = this.colorThief.getColor(img);
+          this.dominantColor = this.rgbToHex(dominantRgb);
+          
+          // Extract color palette (5 colors)
+          const paletteRgb = this.colorThief.getPalette(img, 5);
+          this.colorPalette = paletteRgb.map((rgb: number[]) => this.rgbToHex(rgb));
+        } else {
+          // Skip color extraction if image isn't properly loaded or colorThief isn't available
+          console.warn('Image not fully loaded or ColorThief not available, skipping color extraction');
+        }
         
         // Simulate progress
         let progress = 0;
@@ -173,13 +188,15 @@ export class ImageUploaderComponent {
             clearInterval(interval);
             this.isUploading = false;
             
-            // Emit file with extracted colors
+            // Emit file with extracted colors (if any)
             const fileData: ImageUploadData = {
               file: this.currentFile!,
-              colors: {
-                dominant: this.dominantColor || undefined,
-                palette: this.colorPalette
-              }
+              ...(this.dominantColor && {
+                colors: {
+                  dominant: this.dominantColor,
+                  palette: this.colorPalette
+                }
+              })
             };
             this.fileSelected.emit(fileData);
             
