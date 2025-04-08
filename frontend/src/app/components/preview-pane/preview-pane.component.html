@@ -12,6 +12,7 @@
       <button 
         mat-icon-button 
         matTooltip="Refresh Preview"
+        [disabled]="!generatedCode"
         (click)="refreshPreview()">
         <mat-icon>refresh</mat-icon>
       </button>
@@ -19,6 +20,7 @@
       <button 
         mat-icon-button 
         matTooltip="View Fullscreen"
+        [disabled]="!generatedCode || previewError"
         (click)="openFullscreen()">
         <mat-icon>fullscreen</mat-icon>
       </button>
@@ -26,13 +28,23 @@
   </div>
   
   <div class="preview-content flex-grow">
-    @if (generatedCode) {
+    @if (generatedCode && !previewError) {
       <iframe 
         #previewFrame
         class="w-full h-full border-none"
-        sandbox="allow-scripts"
-        title="Component Preview">
+        [srcdoc]="previewSrcDoc || ''"
+        sandbox="allow-scripts allow-same-origin"
+        loading="lazy"
+        title="Component Preview - {{ generatedCode.component_name }}">
       </iframe>
+    } @else if (previewError) {
+      <div class="flex flex-col items-center justify-center h-full text-red-500">
+        <mat-icon class="text-6xl mb-4">error_outline</mat-icon>
+        <p>Error rendering preview. Please try refreshing.</p>
+        <button mat-button color="primary" (click)="refreshPreview()">
+          <mat-icon>refresh</mat-icon> Retry
+        </button>
+      </div>
     } @else {
       <div class="flex flex-col items-center justify-center h-full text-gray-500">
         <mat-icon class="text-6xl mb-4">visibility</mat-icon>

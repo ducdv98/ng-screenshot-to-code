@@ -5,13 +5,51 @@
 
 .preview-container {
   height: 100%;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.preview-header {
+  background-color: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
 }
 
 .preview-content {
   overflow: hidden;
+  position: relative;
+  background-color: white;
 }
 
 // Make the iframe fill its container
 iframe {
   min-height: 400px;
+  border: none;
+  // Apply a subtle background grid pattern for empty states
+  background-image: linear-gradient(rgba(200, 200, 200, 0.1) 1px, transparent 1px),
+                    linear-gradient(90deg, rgba(200, 200, 200, 0.1) 1px, transparent 1px);
+  background-size: 20px 20px;
+  // Add transition for smooth iframe reload
+  transition: opacity 0.2s ease-in-out;
+}
+
+// Add a subtle scale animation for fullscreen button
+button[matTooltip="View Fullscreen"]:hover mat-icon {
+  transform: scale(1.1);
+  transition: transform 0.2s ease;
+}
+
+// Style for the error state
+.text-red-500 {
+  color: #ef4444;
+}
+
+// Animation for retry button
+button[color="primary"] {
+  transition: all 0.2s ease;
+  
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  }
 } 
