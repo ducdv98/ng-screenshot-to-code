@@ -1,149 +1,1417 @@
-Okay, here is a breakdown of tasks for building the MVP (Minimum Viable Product) based on the development phases, project structure, and requirements. The primary goal of the MVP is to achieve the core **Image-to-Code** functionality with basic display and preview, integrating the Angular frontend and FastAPI backend.
+# MVP Task List: Screenshot to Angular Code Generator
 
-**Assumptions for MVP:**
+**Project Goal:** Build a Minimum Viable Product (MVP) of an application that takes an image (screenshot/mockup) as input and generates corresponding Angular component code (TypeScript, HTML, SCSS) using AI (VLM), styled with Angular Material and TailwindCSS. The MVP will display the generated code and a basic static preview.
 
-*   Focus is *only* on Image Input (F1) to basic Angular/Material/Tailwind code generation (F3, F5).
-*   Figma input (F2, F4) is *post-MVP*.
-*   "Pixel perfect" (NFR1) is *aspirational*; MVP aims for functional similarity.
-*   Basic code display (F7) and a simple static preview (F6) are sufficient.
-*   Error handling is minimal but present for critical paths.
-*   Code quality (NFR4) is secondary to functionality for the initial MVP output.
+**Target Audience:** AI Agents / Developers implementing the MVP.
 
-**Phase 1: Core Image-to-Angular-Material-Tailwind Conversion (MVP Focus)**
+**Instructions:** Complete the following tasks sequentially. Each task includes detailed steps and test cases to verify completion.
 
-**Task 1.1: Backend - Project Setup & Basic App**
+---
 
-*   **Goal:** Initialize the FastAPI project structure and have a minimal running server.
+## Task 1.1: Backend - Project Setup & Basic App
+
+*   **Goal:** Initialize the FastAPI project structure and have a minimal running server with CORS and a health check endpoint.
 *   **Location:** `backend/`
-*   **Actions:**
-    *   Create the directory structure (`app`, `app/api/v1`, `app/core`, `app/models`, `app/services`, `app/main.py`, `requirements.txt`, `.env.example`).
-    *   Install core dependencies: `fastapi`, `uvicorn[standard]`, `python-dotenv`.
-    *   Implement `app/main.py`: Initialize FastAPI app, include basic CORS middleware (allow frontend origin - e.g., `http://localhost:4200`).
-    *   Implement `app/core/config.py`: Setup basic Pydantic `Settings` model to load environment variables (even if none are used yet).
-    *   Create a health check endpoint (e.g., `/health`) in `app/main.py` or a simple router to verify the server runs.
-*   **Result:** A runnable FastAPI server (`uvicorn app.main:app --reload`) responding to `/health`.
+*   **Detailed Steps:**
+    1.  Create the main `backend` directory.
+    2.  Inside `backend`, create the directory structure: `app/`, `app/api/`, `app/api/v1/`, `app/core/`, `app/models/`, `app/services/`.
+    3.  Create empty `__init__.py` files in `app`, `app/api`, `app/api/v1`, `app/core`, `app/models`, `app/services`.
+    4.  Create `app/main.py`.
+    5.  Create `app/core/config.py`.
+    6.  Create `requirements.txt`.
+    7.  Create `.env.example` (can be empty initially).
+    8.  Add the following to `requirements.txt`:
+        ```txt
+        fastapi[all]>=0.100.0
+        uvicorn[standard]>=0.20.0
+        python-dotenv>=1.0.0
+        pydantic-settings>=2.0.0
+        # Add other dependencies later
+        ```
+    9.  Run `pip install -r requirements.txt`. (Ideally within a virtual environment).
+    10. Implement `backend/app/core/config.py`:
+        ```python
+        from pydantic_settings import BaseSettings, SettingsConfigDict
+        from functools import lru_cache
+        import os
 
-**Task 1.2: Frontend - Project Setup & Basic UI Shell**
+        class Settings(BaseSettings):
+            # Default value assumes frontend runs on 4200 during development
+            ALLOW_ORIGINS: list[str] = ["http://localhost:4200"]
+            # Add other environment variables here later (e.g., API keys)
+            OPENAI_API_KEY: str = ""
+            AI_MODEL_NAME: str = "gpt-4-vision-preview"
 
-*   **Goal:** Initialize the Angular project with Material & Tailwind, create the main page shell.
-*   **Location:** `frontend/`
-*   **Actions:**
-    *   Create Angular project using CLI (`ng new frontend --standalone ...`).
-    *   Add Angular Material (`ng add @angular/material`).
-    *   Setup TailwindCSS (install dependencies, configure `tailwind.config.js`, `postcss.config.js`, import in `src/styles.scss`).
-    *   Create `GeneratorPageComponent` (`src/app/pages/generator-page/`).
-    *   Configure basic routing in `app.routes.ts` to display `GeneratorPageComponent` by default.
-    *   In `GeneratorPageComponent`'s HTML, add basic placeholders/titles for "Upload", "Code", "Preview". Use basic Material components (e.g., `mat-toolbar`) for structure if desired.
-*   **Result:** A runnable Angular app (`ng serve`) showing the basic `GeneratorPageComponent` layout.
+            model_config = SettingsConfigDict(env_file='.env', extra='ignore')
 
-**Task 1.3: Frontend - Image Upload Component**
+        @lru_cache()
+        def get_settings():
+            # Load .env file if it exists
+            if os.path.exists(".env"):
+                 print("Loading environment variables from .env file.")
+            else:
+                 print("Warning: .env file not found. Using default settings or system environment variables.")
+            return Settings()
+        ```
+    11. Implement `backend/app/main.py`:
+        ```python
+        from fastapi import FastAPI, Depends
+        from fastapi.middleware.cors import CORSMiddleware
+        from app.core.config import Settings, get_settings
 
-*   **Goal:** Create a UI component to allow users to select an image file.
-*   **Location:** `frontend/src/app/components/image-uploader/`
-*   **Actions:**
-    *   Create `ImageUploaderComponent`.
-    *   Implement a simple file input (`<input type="file" accept="image/*">`). Use `MatButton` to trigger the input if desired for styling.
-    *   Add logic in the `.ts` file to capture the selected `File` object when the input changes.
-    *   Emit the selected `File` object using an `@Output()` EventEmitter.
-    *   Integrate `ImageUploaderComponent` into `GeneratorPageComponent`.
-*   **Result:** User can select an image file via the UI; the `File` object is available in `GeneratorPageComponent`.
+        # Get settings early to configure CORS
+        settings = get_settings()
 
-**Task 1.4: Backend - Image Upload Endpoint Stub**
+        app = FastAPI(title="Screenshot to Code API")
 
-*   **Goal:** Create the API endpoint that can receive an image file.
-*   **Location:** `backend/app/api/v1/endpoints/generate_image.py`, `backend/app/api/v1/router.py`
-*   **Actions:**
-    *   Define a Pydantic model for the response (e.g., `GeneratedCode` in `backend/app/models/generated_code.py`) with initial fields like `component_ts: str`, `component_html: str`, `component_scss: str`.
-    *   Create the `generate_from_image` endpoint function in `generate_image.py`. Use FastAPI's `UploadFile` type hint (`image: UploadFile = File(...)`).
-    *   Register this endpoint with a router in `router.py` and mount the router in `main.py` under `/api/v1`.
-    *   For MVP *stub*, the endpoint can immediately return dummy hardcoded code strings conforming to the `GeneratedCode` model. *Do not implement AI call yet.*
-*   **Result:** Backend has a `/api/v1/generate-from-image` POST endpoint that accepts a file upload and returns dummy JSON data.
+        # Setup CORS
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=settings.ALLOW_ORIGINS, # Get origins from settings
+            allow_credentials=True,
+            allow_methods=["*"],
+            allow_headers=["*"],
+        )
 
-**Task 1.5: Frontend - API Service & Basic Connection**
+        @app.get("/health", tags=["Health Check"])
+        async def health_check():
+            """Check if the application is running."""
+            return {"status": "ok"}
 
-*   **Goal:** Connect the frontend upload action to the backend endpoint stub.
-*   **Location:** `frontend/src/app/services/api.service.ts`, `frontend/src/app/pages/generator-page/`
-*   **Actions:**
-    *   Create `ApiService`. Inject `HttpClient`.
-    *   Define the backend API URL in `environment.ts`.
-    *   Implement a method `generateCodeFromImage(file: File): Observable<GeneratedCode>` in `ApiService`. This method should:
-        *   Create `FormData`.
-        *   Append the `file` to the `FormData`.
-        *   Make a POST request using `HttpClient` to the backend endpoint (`/api/v1/generate-from-image`).
-        *   Type the expected response using a `GeneratedCode` interface (create `frontend/src/app/models/generated-code.model.ts` matching the backend Pydantic model).
-    *   In `GeneratorPageComponent`, when the `ImageUploaderComponent` emits a file, call the `ApiService.generateCodeFromImage` method.
-    *   Log the response from the backend stub to the console.
-*   **Result:** User uploads image -> Frontend calls backend -> Backend stub responds -> Frontend logs the dummy code strings. The basic FE/BE communication loop is established.
+        # Placeholder for API router inclusion later
+        # from app.api.v1.router import api_router
+        # app.include_router(api_router, prefix="/api")
+        ```
+*   **Expected Result & Test Cases:**
+    *   **Test 1.1.1:** Navigate to the `backend` directory.
+    *   **Test 1.1.2:** Run `pip install -r requirements.txt` (within a virtual environment is recommended). **Expected:** Command completes successfully without errors.
+    *   **Test 1.1.3:** Run `uvicorn app.main:app --reload --port 8000`. **Expected:** Server starts without errors, logs indicate listening on `http://0.0.0.0:8000`. Log message about `.env` file status should appear.
+    *   **Test 1.1.4:** Access `http://localhost:8000/health` in a browser or via `curl`. **Expected:** Response body is `{"status": "ok"}` with status code `200`.
+    *   **Test 1.1.5:** Access `http://localhost:8000/docs` in a browser. **Expected:** FastAPI Swagger UI loads successfully, showing the `/health` endpoint.
 
-**Task 1.6: Backend - AI Service Integration (VLM Call)**
+---
 
-*   **Goal:** Implement the core logic to send the image to the VLM and get a response.
-*   **Location:** `backend/app/services/ai_service.py`, `backend/app/services/code_generator.py`, `backend/app/api/v1/endpoints/generate_image.py`, `backend/core/config.py`
-*   **Actions:**
-    *   Add AI SDK dependency (e.g., `openai`, `anthropic`) to `requirements.txt` and install.
-    *   Update `config.py` to load VLM API key (e.g., `OPENAI_API_KEY`) from environment variables. Ensure `.env.example` reflects this.
-    *   Implement `ai_service.py`: Create a function `get_code_from_image(image_bytes: bytes, image_media_type: str, api_key: str)` that:
-        *   Initializes the AI client.
-        *   Prepares the image data (e.g., base64 encoding).
-        *   Calls the VLM API (e.g., GPT-4 Vision, Claude 3) with the image data and a *specific prompt* (defined in `code_generator.py`).
-        *   Returns the raw text response from the AI.
-    *   Implement `code_generator.py`:
-        *   Create a function `generate_angular_code_prompt(image_description_request: str = "")` that returns the detailed prompt string instructing the AI to generate Angular/Material/Tailwind code (`.ts`, `.html`, `.scss`). *This prompt is critical.*
-        *   Create a function `process_image_input(image_bytes: bytes, image_media_type: str)` that:
-            *   Gets the prompt using `generate_angular_code_prompt()`.
-            *   Calls `ai_service.get_code_from_image()` using the prompt.
-            *   *Initially*, just return the raw AI response. (Parsing into structured TS/HTML/SCSS comes next).
-    *   Update the `generate_from_image` endpoint in `generate_image.py`:
-        *   Read image bytes: `image_content = await image.read()`.
-        *   Get the API key from settings.
-        *   Call `code_generator.process_image_input(image_content, image.content_type)`.
-        *   *Temporarily*, put the entire raw AI response into the `component_html` field of the `GeneratedCode` response model for testing.
-*   **Result:** Backend receives image -> Sends to VLM with a specific prompt -> Receives raw text response from VLM -> Sends this raw text back to frontend (in one field).
+## Task 1.2: Frontend - Project Setup & Basic UI Shell
 
-**Task 1.7: Backend - Parse AI Response**
+*   **Goal:** Initialize the Angular project with Material & Tailwind, create the main page shell, and ensure basic styling works.
+*   **Location:** `frontend/` (relative to project root)
+*   **Detailed Steps:**
+    1.  Navigate to the project root directory (containing the `backend` folder).
+    2.  Run `ng new frontend --standalone --routing=true --style=scss --skip-tests`. Respond `N` or `false` to SSR for MVP simplicity.
+    3.  Navigate into the new directory: `cd frontend`.
+    4.  Run `ng add @angular/material`. Choose a theme (e.g., Indigo/Pink), set up Typography (Yes), include Animations (Yes).
+    5.  Run `npm install -D tailwindcss postcss autoprefixer`.
+    6.  Run `npx tailwindcss init -p`. This creates `tailwind.config.js` and `postcss.config.js`.
+    7.  Configure `frontend/tailwind.config.js`:
+        ```javascript
+        /** @type {import('tailwindcss').Config} */
+        module.exports = {
+          content: [
+            "./src/**/*.{html,ts}", // Crucial for Tailwind to find classes
+          ],
+          theme: {
+            extend: {},
+          },
+          plugins: [],
+        }
+        ```
+    8.  Configure `frontend/src/styles.scss`: Add Tailwind directives *at the top*.
+        ```scss
+        // Import Tailwind first
+        @tailwind base;
+        @tailwind components;
+        @tailwind utilities;
 
-*   **Goal:** Parse the raw AI text response into structured TS, HTML, and SCSS code strings.
-*   **Location:** `backend/app/services/code_generator.py`, `backend/app/api/v1/endpoints/generate_image.py`
-*   **Actions:**
-    *   Refine the prompt in `generate_angular_code_prompt` to explicitly ask the AI to delimit the code blocks (e.g., using ```typescript, ```html, ```scss markdown).
-    *   Update the `process_image_input` function in `code_generator.py`:
-        *   After receiving the raw AI response, implement basic parsing logic (e.g., using regex or string splitting based on the expected delimiters) to extract the content within the ```typescript, ```html, and ```scss blocks.
-        *   Handle cases where the AI might not follow the format perfectly (return empty strings or error flags if parsing fails).
-    *   Update the `generate_from_image` endpoint:
-        *   Call the updated `process_image_input`.
-        *   Populate the `component_ts`, `component_html`, `component_scss` fields of the `GeneratedCode` response model with the parsed strings.
-*   **Result:** Backend receives image -> Calls VLM -> Parses AI response -> Returns structured `GeneratedCode` JSON with potentially populated TS, HTML, SCSS fields.
+        // Keep Angular Material theme import below Tailwind imports
+        // Make sure this path matches your setup if needed
+        // @import '@angular/material/theming';
 
-**Task 1.8: Frontend - Display Generated Code**
+        html, body { height: 100%; }
+        body { margin: 0; font-family: Roboto, "Helvetica Neue", sans-serif; }
+        ```
+    9.  Run `ng generate component pages/GeneratorPage --standalone`.
+    10. Configure `frontend/src/app/app.routes.ts`:
+        ```typescript
+        import { Routes } from '@angular/router';
+        import { GeneratorPageComponent } from './pages/generator-page/generator-page.component';
 
-*   **Goal:** Show the received TS, HTML, and SCSS code strings in the UI.
+        export const routes: Routes = [
+            // Default route to the generator page
+            { path: '', component: GeneratorPageComponent, title: 'Screenshot to Code' },
+            // Optional: Redirect any unknown paths back to the generator page
+            { path: '**', redirectTo: ''}
+        ];
+        ```
+    11. Replace the content in `frontend/src/app/app.component.html` with just `<router-outlet></router-outlet>`.
+    12. Add basic placeholder content and apply a Tailwind class in `frontend/src/app/pages/generator-page/generator-page.component.html`:
+        ```html
+        <h1 class="text-3xl font-bold text-center p-6 bg-indigo-600 text-white">
+          Screenshot to Angular Code Generator
+        </h1>
+        <div class="container mx-auto p-4">
+          <h2 class="text-xl font-semibold mt-4 mb-2">1. Upload Image</h2>
+          <div class="p-4 border rounded min-h-[50px]">Upload Section Placeholder</div>
+
+          <h2 class="text-xl font-semibold mt-6 mb-2">2. Generated Code</h2>
+          <div class="p-4 border rounded min-h-[100px]">Code Display Placeholder</div>
+
+          <h2 class="text-xl font-semibold mt-6 mb-2">3. Preview</h2>
+          <div class="p-4 border rounded min-h-[200px]">Preview Placeholder</div>
+        </div>
+        ```
+    13. Ensure `CommonModule` is imported in `generator-page.component.ts` if needed for directives (though not strictly required by the template above yet).
+*   **Expected Result & Test Cases:**
+    *   **Test 1.2.1:** Run `npm install` inside the `frontend` directory. **Expected:** Command completes successfully without errors.
+    *   **Test 1.2.2:** Run `ng serve`. **Expected:** Application compiles and runs without errors. Browser opens (or navigate manually) to `http://localhost:4200`.
+    *   **Test 1.2.3:** View `http://localhost:4200`. **Expected:** See a title bar with "Screenshot to Angular Code Generator" styled with Tailwind classes (large text, bold, centered, indigo background, white text). See the placeholder sections below with titles. No console errors in the browser's developer tools related to setup.
+
+---
+
+## Task 1.3: Frontend - Image Upload Component
+
+*   **Goal:** Create a reusable UI component to allow users to select an image file and emit the selection.
+*   **Location:** `frontend/src/app/components/image-uploader/`, `frontend/src/app/pages/generator-page/`
+*   **Detailed Steps:**
+    1.  Run `ng generate component components/ImageUploader --standalone`.
+    2.  Import `MatButtonModule` and `CommonModule` in `frontend/src/app/components/image-uploader/image-uploader.component.ts`:
+        ```typescript
+        import { Component, EventEmitter, Output, Input } from '@angular/core'; // Add Input
+        import { CommonModule } from '@angular/common';
+        import { MatButtonModule } from '@angular/material/button';
+
+        @Component({
+          selector: 'app-image-uploader',
+          standalone: true,
+          imports: [CommonModule, MatButtonModule],
+          templateUrl: './image-uploader.component.html',
+          styleUrl: './image-uploader.component.scss'
+        })
+        export class ImageUploaderComponent {
+          @Output() imageSelected = new EventEmitter<File>();
+          @Input() disabled: boolean = false; // Add disabled input
+
+          onFileSelected(event: Event): void {
+            const element = event.currentTarget as HTMLInputElement;
+            const fileList: FileList | null = element.files;
+
+            if (fileList && fileList.length > 0) {
+              const file = fileList[0];
+              console.log('File selected in uploader:', file.name);
+              this.imageSelected.emit(file);
+            }
+            // Reset file input value to allow re-selection of the same file
+            element.value = '';
+          }
+        }
+        ```
+    3.  Implement `frontend/src/app/components/image-uploader/image-uploader.component.html`:
+        ```html
+        <input
+          type="file"
+          #fileInput
+          hidden
+          (change)="onFileSelected($event)"
+          accept="image/png, image/jpeg, image/webp"
+          [disabled]="disabled"
+        />
+        <button
+          mat-raised-button
+          color="primary"
+          (click)="fileInput.click()"
+          [disabled]="disabled">
+          <span class="material-icons mr-2">upload_file</span> <!-- Optional Icon -->
+          Upload Screenshot
+        </button>
+        ```
+        *(Note: Ensure Material Icons are linked, usually done during `ng add @angular/material` setup or manually in `index.html`)*
+    4.  Update `frontend/src/app/pages/generator-page/generator-page.component.ts`: Import `ImageUploaderComponent` and `CommonModule`, add them to `imports`. Implement the event handler.
+        ```typescript
+        import { Component } from '@angular/core';
+        import { CommonModule } from '@angular/common'; // Import CommonModule
+        import { ImageUploaderComponent } from '../../components/image-uploader/image-uploader.component';
+
+        @Component({
+          selector: 'app-generator-page',
+          standalone: true,
+          // Add CommonModule and ImageUploaderComponent to imports
+          imports: [CommonModule, ImageUploaderComponent],
+          templateUrl: './generator-page.component.html',
+          styleUrl: './generator-page.component.scss'
+        })
+        export class GeneratorPageComponent {
+          selectedFile: File | null = null;
+          isLoading: boolean = false; // Add isLoading state for later use
+
+          onImageUploaded(file: File): void {
+            this.selectedFile = file;
+            console.log('Image received in GeneratorPage:', file.name);
+            // Trigger API call here in Task 1.5
+          }
+
+          // Helper to format file size (optional)
+          formatBytes(bytes: number, decimals = 2): string {
+              if (!+bytes) return '0 Bytes'
+              const k = 1024
+              const dm = decimals < 0 ? 0 : decimals
+              const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB']
+              const i = Math.floor(Math.log(bytes) / Math.log(k))
+              return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`
+          }
+        }
+        ```
+    5.  Update `frontend/src/app/pages/generator-page/generator-page.component.html`: Replace the upload placeholder with the component and add file info display.
+        ```html
+        <!-- Keep Header -->
+        <div class="container mx-auto p-4">
+          <h2 class="text-xl font-semibold mt-4 mb-2">1. Upload Image</h2>
+          <div class="p-4 border rounded min-h-[50px]">
+            <app-image-uploader
+              (imageSelected)="onImageUploaded($event)"
+              [disabled]="isLoading"> {/* Pass isLoading state */}
+            </app-image-uploader>
+            <!-- Display selected file info -->
+            <div *ngIf="selectedFile" class="mt-3 text-sm text-gray-700 bg-gray-100 p-2 rounded">
+                Selected: <strong>{{ selectedFile.name }}</strong> ({{ formatBytes(selectedFile.size) }})
+            </div>
+          </div>
+
+          <!-- Keep Code Display Placeholder -->
+          <!-- Keep Preview Placeholder -->
+        </div>
+        ```
+*   **Expected Result & Test Cases:**
+    *   **Test 1.3.1:** Run `ng serve`. Navigate to `http://localhost:4200`. **Expected:** An "Upload Screenshot" Material button (likely primary color) is visible in the first section. An upload icon may appear next to the text.
+    *   **Test 1.3.2:** Click the button. **Expected:** A file selection dialog opens, filtering for specified image types (PNG, JPG, WEBP).
+    *   **Test 1.3.3:** Select a valid image file (e.g., `my_test.png`). **Expected:**
+        *   The file dialog closes.
+        *   The browser console logs "File selected in uploader: my\_test.png".
+        *   The browser console logs "Image received in GeneratorPage: my\_test.png".
+        *   Text appears below the button showing the selected file name and formatted size (e.g., "Selected: **my\_test.png** (150.33 KB)").
+    *   **Test 1.3.4:** Click the button again and select the *same* image file. **Expected:** The `onImageUploaded` event fires again, console logs appear, and the file info text updates (verifies input reset works).
+
+---
+
+## Task 1.4: Backend - Image Upload Endpoint Stub
+
+*   **Goal:** Create the API endpoint structure that accepts an image file upload via multipart/form-data and returns a hardcoded (dummy) code structure response.
+*   **Location:** `backend/app/api/v1/endpoints/generate_image.py`, `backend/app/models/generated_code.py`, `backend/app/api/v1/router.py`, `backend/app/main.py`
+*   **Detailed Steps:**
+    1.  Create `backend/app/models/generated_code.py`:
+        ```python
+        from pydantic import BaseModel, Field
+
+        class GeneratedCode(BaseModel):
+            component_ts: str = Field(description="Generated TypeScript code for the Angular component.")
+            component_html: str = Field(description="Generated HTML template for the Angular component.")
+            component_scss: str = Field(description="Generated SCSS/CSS styles for the Angular component.")
+        ```
+    2.  Create `backend/app/api/v1/endpoints/__init__.py`.
+    3.  Create `backend/app/api/v1/endpoints/generate_image.py`:
+        ```python
+        from fastapi import APIRouter, File, UploadFile, HTTPException, status, Depends
+        from app.models.generated_code import GeneratedCode
+        from app.core.config import Settings, get_settings # Import settings if needed later
+
+        router = APIRouter()
+
+        @router.post(
+            "/generate-from-image",
+            response_model=GeneratedCode,
+            summary="Generate Angular Code from Image (Stub)",
+            tags=["Generation"] # Add tag for Swagger UI grouping
+        )
+        async def generate_code_from_image_stub(
+            # Use 'image' as the key for the uploaded file
+            image: UploadFile = File(..., description="Image file (PNG, JPG, WEBP) to convert.")
+            # settings: Settings = Depends(get_settings) # Keep if needed later
+        ):
+            """
+            Accepts an image file via multipart/form-data.
+            **MVP Stub:** Returns hardcoded dummy code blocks.
+            """
+            allowed_mime_types = ["image/png", "image/jpeg", "image/webp"]
+            if image.content_type not in allowed_mime_types:
+                raise HTTPException(
+                    status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+                    detail=f"Unsupported file type: {image.content_type}. Please upload PNG, JPG, or WEBP.",
+                )
+
+            # --- AI Logic Placeholder ---
+            print(f"Received image stub request: {image.filename}, type: {image.content_type}")
+
+            # Dummy data for MVP stub response
+            dummy_ts = """import { Component } from '@angular/core';
+import { CommonModule } from '@angular/common';
+
+@Component({
+  selector: 'app-generated-component',
+  standalone: true,
+  imports: [CommonModule],
+  templateUrl: './generated-component.component.html',
+  styleUrls: ['./generated-component.component.scss']
+})
+export class GeneratedComponent {
+  // Dummy component logic
+}"""
+            dummy_html = """<div class="p-4 border rounded bg-gray-100 text-center">
+  <h2 class="text-xl font-bold mb-3">Dummy Generated Card</h2>
+  <p class="text-gray-700 mb-4">This is placeholder content generated by the backend stub.</p>
+  <button class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+    Click Me (Dummy)
+  </button>
+</div>"""
+            dummy_scss = """:host {
+  display: block;
+  padding: 1rem; /* Example host styling */
+}
+
+/* Most styling should be via Tailwind in HTML */
+.special-dummy-class {
+  font-style: italic; /* Example */
+}"""
+            return GeneratedCode(
+                component_ts=dummy_ts,
+                component_html=dummy_html,
+                component_scss=dummy_scss
+            )
+        ```
+    4.  Create `backend/app/api/v1/router.py`:
+        ```python
+        from fastapi import APIRouter
+        # Import the router object from your endpoint file
+        from .endpoints import generate_image
+
+        api_router = APIRouter()
+
+        # Include the specific router from the endpoint file
+        api_router.include_router(generate_image.router) # Removed tag here, tag is in endpoint router
+        ```
+    5.  Update `backend/app/main.py` to include the V1 router *with a prefix*:
+        ```python
+        # ... (keep existing imports and app setup)
+        from app.api.v1.router import api_router # Import the v1 router
+
+        # Include the API router with a prefix (e.g., /api/v1)
+        app.include_router(api_router, prefix="/api/v1")
+
+        # ... (keep health check)
+        ```
+*   **Expected Result & Test Cases:**
+    *   **Test 1.4.1:** Restart the backend server (`uvicorn ...`). **Expected:** Server starts without errors.
+    *   **Test 1.4.2:** Access `http://localhost:8000/docs`. **Expected:** Swagger UI loads. Under the "Generation" tag, see the `POST /api/v1/generate-from-image` endpoint documented.
+    *   **Test 1.4.3:** Use Swagger UI's "Try it out" feature or a tool like `curl` or Postman:
+        *   Send a `POST` request to `http://localhost:8000/api/v1/generate-from-image`.
+        *   Set the request body type to `multipart/form-data`.
+        *   Add a form field named `image` (this key MUST match the FastAPI parameter name).
+        *   Set the value of the `image` field to be a valid image file (e.g., upload `test.png`).
+        *   Execute the request.
+        *   **Expected:**
+            *   Response Status Code: `200 OK`.
+            *   Response Body: A JSON object matching the `GeneratedCode` model, containing the non-empty `dummy_ts`, `dummy_html`, and `dummy_scss` strings defined in the stub function.
+            *   Server console log shows the "Received image stub request..." message.
+    *   **Test 1.4.4:** Send a POST request as above, but attach a non-image file (e.g., `test.txt`).
+        *   **Expected:**
+            *   Response Status Code: `415 Unsupported Media Type`.
+            *   Response Body: JSON containing `{"detail": "Unsupported file type: text/plain..."}`.
+
+---
+
+## Task 1.5: Frontend - API Service & Basic Connection
+
+*   **Goal:** Create an Angular service to handle API calls, connect the image upload action to the backend stub endpoint, and display loading/error states.
+*   **Location:** `frontend/src/app/services/api.service.ts`, `frontend/src/app/pages/generator-page/`, `frontend/src/environments/`, `frontend/src/app/models/generated-code.model.ts`, `frontend/src/app/app.config.ts`
+*   **Detailed Steps:**
+    1.  Run `ng generate service services/ApiService --skip-tests`.
+    2.  Create `frontend/src/app/models/generated-code.model.ts`:
+        ```typescript
+        // Matches the backend Pydantic model
+        export interface GeneratedCode {
+          component_ts: string;
+          component_html: string;
+          component_scss: string;
+        }
+        ```
+    3.  Define the backend API URL in `frontend/src/environments/environment.ts` (and potentially `environment.development.ts` if it exists):
+        ```typescript
+        // Example for environment.ts (development)
+        export const environment = {
+          production: false,
+          apiUrl: 'http://localhost:8000' // Backend runs on port 8000
+        };
+        ```
+    4.  Implement `frontend/src/app/services/api.service.ts`:
+        ```typescript
+        import { Injectable } from '@angular/core';
+        import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+        import { Observable, throwError } from 'rxjs';
+        import { catchError, tap } from 'rxjs/operators'; // Import operators
+        import { environment } from '../../environments/environment';
+        import { GeneratedCode } from '../models/generated-code.model';
+
+        @Injectable({
+          providedIn: 'root' // Service available application-wide
+        })
+        export class ApiService {
+          // Define the base API URL from environment
+          private backendUrl = `${environment.apiUrl}/api/v1`;
+
+          constructor(private http: HttpClient) {}
+
+          /**
+           * Uploads an image file and requests code generation.
+           * @param file The image file to upload.
+           * @returns Observable emitting the GeneratedCode object or an error.
+           */
+          generateCodeFromImage(file: File): Observable<GeneratedCode> {
+            const formData = new FormData();
+            // Key 'image' MUST match the key expected by the backend endpoint
+            formData.append('image', file, file.name);
+
+            console.log(`Sending POST to ${this.backendUrl}/generate-from-image`);
+
+            return this.http.post<GeneratedCode>(`${this.backendUrl}/generate-from-image`, formData)
+              .pipe(
+                tap(response => console.log('Raw API Response:', response)), // Log success
+                catchError(this.handleError) // Centralized error handling
+              );
+          }
+
+          /**
+           * Basic error handler for API calls.
+           * Logs the error and returns an Observable error.
+           */
+          private handleError(error: HttpErrorResponse): Observable<never> {
+            console.error('API Error occurred:', error); // Log the full error
+
+            let userMessage = 'An unexpected error occurred. Please try again.';
+            if (error.error instanceof ErrorEvent) {
+              // Client-side or network error
+              userMessage = `Network error: ${error.message}`;
+            } else if (error.status === 415) {
+                userMessage = `Unsupported file type. ${error.error?.detail || 'Please upload PNG, JPG, or WEBP.'}`
+            } else if (error.status === 0) {
+                 userMessage = 'Cannot connect to the server. Is it running?';
+            }
+             else {
+              // Server-side error
+              // Try to get detail from FastAPI error response
+              const detail = error.error?.detail;
+              userMessage = `Server error ${error.status}: ${detail || error.message}`;
+            }
+
+            // Return an observable with a user-facing error message.
+            return throwError(() => new Error(userMessage));
+          }
+        }
+        ```
+    5.  Ensure `HttpClientModule` (or `provideHttpClient()`) is available. In `frontend/src/app/app.config.ts` (for standalone):
+        ```typescript
+        import { ApplicationConfig } from '@angular/core';
+        import { provideRouter } from '@angular/router';
+        import { routes } from './app.routes';
+        import { provideClientHydration } from '@angular/platform-browser';
+        import { provideAnimations } from '@angular/platform-browser/animations';
+        import { provideHttpClient, withFetch } from '@angular/common/http'; // Import provideHttpClient
+
+        export const appConfig: ApplicationConfig = {
+          providers: [
+            provideRouter(routes),
+            provideClientHydration(),
+            provideAnimations(),
+            provideHttpClient(withFetch()) // Add provideHttpClient
+          ]
+        };
+        ```
+    6.  Update `frontend/src/app/pages/generator-page/generator-page.component.ts`: Inject `ApiService`, call it in the handler, manage loading/error states. Import `MatProgressSpinnerModule`.
+        ```typescript
+        import { Component } from '@angular/core';
+        import { CommonModule } from '@angular/common';
+        import { ImageUploaderComponent } from '../../components/image-uploader/image-uploader.component';
+        import { ApiService } from '../../services/api.service'; // Import ApiService
+        import { GeneratedCode } from '../../models/generated-code.model'; // Import model
+        import { finalize } from 'rxjs/operators'; // Use operators path
+        import { MatProgressSpinnerModule } from '@angular/material/progress-spinner'; // Import Spinner
+
+        @Component({
+          selector: 'app-generator-page',
+          standalone: true,
+          imports: [
+              CommonModule,
+              ImageUploaderComponent,
+              MatProgressSpinnerModule // Add Spinner Module
+          ],
+          templateUrl: './generator-page.component.html',
+          styleUrl: './generator-page.component.scss'
+        })
+        export class GeneratorPageComponent {
+          selectedFile: File | null = null;
+          generatedCode: GeneratedCode | null = null;
+          isLoading = false;
+          errorMessage: string | null = null; // Store user-friendly error message
+
+          constructor(private apiService: ApiService) {} // Inject ApiService
+
+          onImageUploaded(file: File): void {
+            this.selectedFile = file;
+            this.generatedCode = null;    // Clear previous results
+            this.errorMessage = null;   // Clear previous errors
+            this.isLoading = true;        // Set loading state
+
+            console.log('Calling generateCodeFromImage service...');
+
+            this.apiService.generateCodeFromImage(file).pipe(
+              // finalize operator runs on completion or error
+              finalize(() => {
+                  console.log('API call finished.');
+                  this.isLoading = false; // Reset loading state regardless of outcome
+              })
+            ).subscribe({
+              next: (response: GeneratedCode) => {
+                console.log('Successfully received generated code.');
+                this.generatedCode = response; // Store the successful result
+              },
+              error: (error: Error) => {
+                // error here is the user-friendly message from handleError
+                console.error('Error received from API service:', error.message);
+                this.errorMessage = error.message; // Display error to user
+              }
+            });
+          }
+
+          // Keep formatBytes helper
+          formatBytes(bytes: number, decimals = 2): string { /* ... */ }
+        }
+        ```
+    7.  Update `frontend/src/app/pages/generator-page/generator-page.component.html` to show loading spinner and error messages:
+        ```html
+        <!-- Keep Header -->
+        <div class="container mx-auto p-4">
+          <!-- Upload Section -->
+          <h2 class="text-xl font-semibold mt-4 mb-2">1. Upload Image</h2>
+          <div class="p-4 border rounded min-h-[50px] relative"> {/* Added relative positioning */}
+            <app-image-uploader
+              (imageSelected)="onImageUploaded($event)"
+              [disabled]="isLoading">
+            </app-image-uploader>
+
+            <!-- Loading Spinner Overlay -->
+            <div *ngIf="isLoading" class="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center z-10">
+              <mat-spinner diameter="40"></mat-spinner>
+              <span class="ml-2 text-gray-600">Generating...</span>
+            </div>
+
+            <!-- Selected File Info -->
+            <div *ngIf="selectedFile && !isLoading" class="mt-3 text-sm text-gray-700 bg-gray-100 p-2 rounded">
+                Selected: <strong>{{ selectedFile.name }}</strong> ({{ formatBytes(selectedFile.size) }})
+            </div>
+
+            <!-- Error Message Display -->
+            <div *ngIf="errorMessage && !isLoading" class="mt-3 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
+                <strong>Error:</strong> {{ errorMessage }}
+            </div>
+          </div>
+
+          <!-- Code Display Placeholder -->
+          <h2 class="text-xl font-semibold mt-6 mb-2">2. Generated Code</h2>
+          <div class="p-4 border rounded min-h-[100px]">
+            <div *ngIf="generatedCode"> {/* Show placeholder text if code received */}
+              Placeholder: Received code (HTML starts with: {{ generatedCode.component_html.substring(0, 60) }}...)
+            </div>
+            <div *ngIf="!generatedCode && !isLoading && !errorMessage">
+                Generated code will appear here.
+            </div>
+          </div>
+
+          <!-- Preview Placeholder -->
+          <h2 class="text-xl font-semibold mt-6 mb-2">3. Preview</h2>
+          <div class="p-4 border rounded min-h-[200px]">
+             <div *ngIf="!generatedCode && !isLoading && !errorMessage">
+                Preview will appear here.
+             </div>
+          </div>
+        </div>
+        ```
+*   **Expected Result & Test Cases:**
+    *   **Test 1.5.1:** Run both backend and frontend servers (`uvicorn ...` and `ng serve`).
+    *   **Test 1.5.2:** Open `http://localhost:4200`. Upload a valid image file (`test.png`). **Expected:**
+        *   An overlay with a loading spinner (`mat-spinner`) and "Generating..." text appears over the upload section. The upload button is disabled.
+        *   The browser console logs "Calling generateCodeFromImage service...".
+        *   The browser's Network tab shows a `POST` request to `http://localhost:8000/api/v1/generate-from-image` with status `200 OK`.
+        *   The browser console logs "Raw API Response:" followed by the dummy `GeneratedCode` object from the backend stub.
+        *   The browser console logs "API call finished.".
+        *   The loading spinner overlay disappears. The upload button is enabled again.
+        *   The "Generated Code" section shows placeholder text indicating code was received (e.g., showing the start of the dummy HTML).
+        *   No error message is displayed.
+    *   **Test 1.5.3:** Stop the backend server. Refresh the frontend (`http://localhost:4200`). Upload an image. **Expected:**
+        *   Loading spinner overlay appears.
+        *   Network tab shows the POST request failing (e.g., status `0` or connection refused).
+        *   Loading spinner overlay disappears.
+        *   An error message appears below the upload button (e.g., "Error: Cannot connect to the server...").
+        *   Console logs show the error caught by `handleError` and the user-friendly message.
+    *   **Test 1.5.4:** Start the backend. Upload an invalid file type (e.g., `test.txt`). **Expected:**
+        *   Loading spinner overlay appears and disappears.
+        *   Network tab shows `415 Unsupported Media Type` response.
+        *   An error message appears (e.g., "Error: Unsupported file type...").
+
+---
+
+## Task 1.6: Backend - AI Service Integration (VLM Call)
+
+*   **Goal:** Implement the backend service logic to send the uploaded image and a carefully crafted prompt to the configured Vision Language Model (VLM) API (e.g., OpenAI GPT-4 Vision) and retrieve the raw text response.
+*   **Location:** `backend/app/services/ai_service.py`, `backend/app/services/code_generator.py`, `backend/app/api/v1/endpoints/generate_image.py`, `backend/core/config.py`, `backend/requirements.txt`, `backend/.env`
+*   **Detailed Steps:**
+    1.  Add VLM SDK and potentially `httpx` to `backend/requirements.txt`. Run `pip install -r requirements.txt`.
+        ```txt
+        # requirements.txt (add these, adjust based on chosen VLM)
+        openai>=1.3.0
+        httpx>=0.25.0 # Recommended for async client
+        # anthropic>=0.7.0 # If using Anthropic
+        Pillow>=9.0.0 # Useful for image size validation/info later
+        ```
+    2.  Update `backend/.env.example` to include API key(s) and AI model name. Create/update `backend/.env` with your actual credentials.
+        ```ini
+        # .env / .env.example
+        OPENAI_API_KEY="sk-YourActualOpenAIKeyHere"
+        # ANTHROPIC_API_KEY="sk-ant-YourActualAnthropicKeyHere"
+        AI_MODEL_NAME="gpt-4-vision-preview" # Or e.g., "claude-3-opus-20240229"
+        ALLOW_ORIGINS='["http://localhost:4200"]' # Ensure this is set if not default
+        ```
+    3.  Update `backend/core/config.py` to load these variables (already done in Task 1.1 update, verify).
+    4.  Create `backend/app/services/ai_service.py`:
+        ```python
+        import base64
+        import httpx
+        from openai import AsyncOpenAI, OpenAIError # Import specific error
+        from app.core.config import Settings
+        # from anthropic import AsyncAnthropic, AnthropicError # Example for Anthropic
+
+        # --- OpenAI VLM Implementation ---
+        async def get_completion_from_openai_vlm(
+            image_bytes: bytes,
+            image_media_type: str, # e.g., "image/png"
+            prompt: str,
+            settings: Settings
+        ) -> str:
+            """Sends image and prompt to OpenAI VLM and returns text response."""
+            if not settings.OPENAI_API_KEY:
+                raise ValueError("OPENAI_API_KEY not configured in settings.")
+
+            print(f"Calling OpenAI API (model: {settings.AI_MODEL_NAME})...")
+            # Use httpx client for potentially better timeout control if needed
+            # http_client = httpx.AsyncClient(timeout=60.0) # Example: 60s timeout
+            client = AsyncOpenAI(
+                api_key=settings.OPENAI_API_KEY,
+                # http_client=http_client # Optional: pass custom httpx client
+            )
+
+            base64_image = base64.b64encode(image_bytes).decode('utf-8')
+            image_url = f"data:{image_media_type};base64,{base64_image}"
+
+            try:
+                response = await client.chat.completions.create(
+                    model=settings.AI_MODEL_NAME,
+                    messages=[
+                        {
+                            "role": "user",
+                            "content": [
+                                {"type": "text", "text": prompt},
+                                {
+                                    "type": "image_url",
+                                    "image_url": {"url": image_url, "detail": "high"}, # Use high detail
+                                },
+                            ],
+                        }
+                    ],
+                    max_tokens=4096 # Generous limit, adjust based on model/cost
+                )
+                print("OpenAI API call successful.")
+                # print("AI Raw Response Object:", response) # Debug log full response if needed
+
+                if response.choices and response.choices[0].message and response.choices[0].message.content:
+                    return response.choices[0].message.content
+                else:
+                    # Handle cases like content filtering or empty response
+                    finish_reason = response.choices[0].finish_reason if response.choices else "unknown"
+                    error_message = f"AI Error: No content received. Finish reason: {finish_reason}"
+                    print(error_message)
+                    raise RuntimeError(error_message) # Raise specific error
+
+            except OpenAIError as e:
+                print(f"OpenAI API Error: {e}")
+                raise RuntimeError(f"AI service request failed: {e}") from e
+            except Exception as e:
+                 print(f"An unexpected error occurred during AI call: {e}")
+                 raise RuntimeError(f"Unexpected AI service error: {e}") from e
+            # finally:
+                 # If using custom httpx client without 'async with', close it
+                 # if 'http_client' in locals() and isinstance(http_client, httpx.AsyncClient):
+                 #    await http_client.aclose()
+        ```
+        *(Add similar functions/logic if supporting other VLMs like Anthropic Claude)*
+    5.  Create/Update `backend/app/services/code_generator.py`: Define the prompt and orchestrate the call.
+        ```python
+        from app.core.config import Settings
+        from app.services import ai_service # Import the specific service module
+        import re # Import re for later use in parsing
+
+        # --- Prompt Definition ---
+        # This is the MOST CRITICAL part for quality. Refine extensively.
+        ANGULAR_CODE_PROMPT = """
+Analyze the user interface in the provided image. Your goal is to generate code for a single, self-contained Angular component (`standalone: true`) that accurately replicates the visual appearance and structure shown.
+
+**Constraints and Requirements:**
+
+1.  **Output Format:** Provide exactly three Markdown code blocks, clearly fenced with language identifiers:
+    *   ```typescript
+        // Component TypeScript code here
+        ```
+    *   ```html
+        <!-- Component HTML Template code here -->
+        ```
+    *   ```scss
+        /* Component SCSS code here */
+        ```
+2.  **Angular Component Structure:**
+    *   **TypeScript (.ts):** Generate a basic `@Component` definition. Include `selector` (e.g., `app-generated-component`), `standalone: true`, `imports: [CommonModule, ...any required Material modules]`, `templateUrl`, `styleUrl`. Avoid complex logic, state, `@Input`/`@Output` unless absolutely obvious and simple from the image (prefer static representation for MVP).
+    *   **HTML (.html):** Use standard HTML5 elements. **Prioritize using Angular Material components (v17+, Material 3 design)** wherever they semantically match the visual elements (e.g., buttons -> `<button mat-raised-button color="primary">`, cards -> `<mat-card>`, inputs -> `<mat-form-field><input matInput>`, icons -> `<mat-icon>`). Use TailwindCSS utility classes **exclusively** for all styling: layout (flexbox/grid), spacing (p-, m-, gap-), colors (bg-, text-, border-), typography (text-, font-), borders, shadows, etc. Do NOT use inline `style="..."` attributes or `<style>` tags within the HTML.
+    *   **SCSS (.scss):** Keep this minimal. Primarily use for essential Tailwind directives (`@tailwind base; @tailwind components; @tailwind utilities;` - *though these usually belong in global styles*), or unavoidable host styling (`:host { display: block; }`). Rely on Tailwind utilities in the HTML for component-specific styles.
+3.  **Visual Accuracy:**
+    *   Replicate the layout structure shown in the image using Tailwind flexbox (`flex`, `flex-col`, `items-center`, `justify-between`, etc.) and grid utilities.
+    *   Match colors closely. Use standard Tailwind color names (e.g., `bg-blue-600`, `text-gray-800`). If a color is non-standard but clear, use Tailwind's arbitrary value syntax `bg-[#1a2b3c]` but prefer standard palette names.
+    *   Match text content, font sizes (`text-sm`, `text-lg`, `text-2xl`), and font weights (`font-normal`, `font-semibold`, `font-bold`) using Tailwind utilities. Assume default fonts.
+    *   Use placeholder text and data exactly as seen in the image. Do not invent data.
+    *   Pay attention to spacing, padding, margins, border radius (`rounded-md`, `rounded-full`), and shadows (`shadow-md`, `shadow-lg`).
+
+**Task:** Generate the Angular component code according to these requirements based *only* on the provided image.
+"""
+
+        async def generate_code_from_image_service(
+            image_bytes: bytes,
+            image_media_type: str,
+            settings: Settings
+        ) -> str: # Return raw string from AI for now
+            """Generates code by calling the configured VLM service."""
+            print(f"Requesting code generation from AI service (model: {settings.AI_MODEL_NAME})...")
+            try:
+                # --- Choose VLM implementation based on config or logic ---
+                # For MVP, assume OpenAI if key is present
+                if settings.OPENAI_API_KEY:
+                    raw_response = await ai_service.get_completion_from_openai_vlm(
+                        image_bytes=image_bytes,
+                        image_media_type=image_media_type,
+                        prompt=ANGULAR_CODE_PROMPT, # Use the defined prompt
+                        settings=settings
+                    )
+                # elif settings.ANTHROPIC_API_KEY:
+                #    raw_response = await ai_service.get_completion_from_anthropic_vlm(...)
+                else:
+                    raise ValueError("No suitable AI API key configured.")
+
+                print("Raw response received from AI service.")
+                if not raw_response:
+                     raise RuntimeError("AI service returned an empty response.")
+                return raw_response
+            except (ValueError, RuntimeError, OpenAIError) as e: # Catch specific errors
+                 print(f"Error during code generation service call: {e}")
+                 # Re-raise or handle appropriately; maybe raise HTTPException here?
+                 raise # Re-raise the caught exception for the endpoint to handle
+
+        # Parsing function - will be implemented in Task 1.7
+        def parse_ai_response(raw_response: str | None) -> tuple[str, str, str]:
+             """Placeholder: Parses raw AI response. Task 1.7 implements this."""
+             print("Parsing AI response (STUB - Task 1.6 test)...")
+             # For *this task's test*, return the raw response in the HTML field
+             # and empty strings for TS/SCSS to verify the AI call worked.
+             if raw_response is None:
+                 return ("", "AI service returned None.", "")
+             return ("", raw_response, "")
+        ```
+    6.  Update `backend/app/api/v1/endpoints/generate_image.py` to use the service and handle potential errors:
+        ```python
+        from fastapi import APIRouter, File, UploadFile, HTTPException, status, Depends
+        from app.models.generated_code import GeneratedCode
+        from app.core.config import Settings, get_settings
+        # Import the generator service, not ai_service directly
+        from app.services import code_generator
+        from PIL import Image # Import Pillow
+        import io # Import io
+
+        router = APIRouter()
+
+        # Example limits (adjust as needed)
+        MAX_FILE_SIZE_MB = 10
+        MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024
+
+        @router.post(
+            "/generate-from-image",
+            response_model=GeneratedCode,
+            summary="Generate Angular Code from Image", # Update summary
+            tags=["Generation"]
+        )
+        async def generate_code_from_image_endpoint( # Rename function
+            image: UploadFile = File(..., description=f"Image file (PNG, JPG, WEBP), max {MAX_FILE_SIZE_MB}MB."),
+            settings: Settings = Depends(get_settings) # Inject settings
+        ):
+            """
+            Uploads an image, sends it to the configured VLM API via the service layer,
+            parses the response (stub for now), and returns the structured code.
+            """
+            # --- Input Validation ---
+            allowed_mime_types = ["image/png", "image/jpeg", "image/webp"]
+            if image.content_type not in allowed_mime_types:
+                 raise HTTPException(status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, detail=f"Unsupported file type: {image.content_type}.")
+
+            image_content = await image.read()
+            if len(image_content) > MAX_FILE_SIZE_BYTES:
+                 raise HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail=f"File size exceeds {MAX_FILE_SIZE_MB}MB limit.")
+
+            # Optional: Basic image integrity check with Pillow
+            try:
+                img = Image.open(io.BytesIO(image_content))
+                img.verify() # Verify that it is, in fact, an image
+                # Reopen after verify: Pillow can corrupt the stream
+                img = Image.open(io.BytesIO(image_content))
+                img.load() # Load image data to check for truncation
+                print(f"Image validated: {image.filename}, format: {img.format}, size: {img.size}")
+            except Exception as e:
+                print(f"Invalid image file: {e}")
+                raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"Invalid or corrupted image file: {e}")
+
+            # --- Service Call ---
+            try:
+                print(f"Processing image: {image.filename} ({len(image_content)} bytes)")
+                raw_ai_response = await code_generator.generate_code_from_image_service(
+                    image_bytes=image_content,
+                    image_media_type=image.content_type,
+                    settings=settings
+                )
+            except (ValueError, RuntimeError) as e: # Catch errors raised from service
+                 print(f"Service layer error: {e}")
+                 # Map specific errors to HTTP status codes if needed
+                 if "API key" in str(e):
+                      raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="AI service unavailable (configuration error).")
+                 else:
+                      raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Code generation failed: {e}")
+            except Exception as e:
+                 # Catch any other unexpected errors
+                 print(f"Unexpected error in endpoint: {e}")
+                 raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An unexpected error occurred during generation.")
+
+
+            # --- Parsing (Stub for this task's test) ---
+            ts_code, html_code, scss_code = code_generator.parse_ai_response(raw_ai_response)
+
+            print("Returning parsed/raw response to client.")
+            return GeneratedCode(
+                component_ts=ts_code,     # Expect empty from stub parser
+                component_html=html_code, # Expect raw AI response from stub parser
+                component_scss=scss_code  # Expect empty from stub parser
+            )
+        ```
+*   **Expected Result & Test Cases:**
+    *   **Test 1.6.1:** Ensure a valid VLM API key (e.g., `OPENAI_API_KEY`) is correctly set in the `backend/.env` file. Restart the backend server.
+    *   **Test 1.6.2:** Use the frontend UI (or Postman/curl) to POST a simple, clear UI screenshot (e.g., a button, a simple card) to the `/api/v1/generate-from-image` endpoint.
+    *   **Test 1.6.3:** Monitor backend server logs carefully. **Expected:** Logs should show:
+        *   "Image validated: ..." (if Pillow check passes)
+        *   "Processing image..."
+        *   "Requesting code generation from AI service..."
+        *   "Calling OpenAI API..." (or equivalent for other VLM)
+        *   "OpenAI API call successful." (or equivalent)
+        *   "Raw response received from AI service."
+        *   "Parsing AI response (STUB - Task 1.6 test)..."
+        *   "Returning parsed/raw response to client."
+    *   **Test 1.6.4:** Examine the HTTP response received by the client (e.g., in frontend console log `Raw API Response:`, or Postman). **Expected:**
+        *   Response Status Code: `200 OK`.
+        *   Response Body: A JSON object matching `GeneratedCode`. The `component_html` field should contain the *complete, raw text response* directly from the VLM API. `component_ts` and `component_scss` should be empty strings, as per the `parse_ai_response` stub for this task.
+    *   **Test 1.6.5:** Intentionally provide an *invalid* API key in `.env`. Restart backend. Send request again. **Expected:** Response Status Code: `503 Service Unavailable` (or `500` depending on error handling) with a detail message indicating an AI service configuration error or failure. Backend logs should show the `OpenAIError` (or similar) related to authentication.
+    *   **Test 1.6.6:** Upload a very large file (e.g., > 10MB). **Expected:** Status `413 Request Entity Too Large`.
+    *   **Test 1.6.7:** Upload a non-image file renamed with a `.png` extension. **Expected:** Status `422 Unprocessable Entity` due to Pillow validation failure.
+    *   *(Cost Warning: Each successful VLM API call in these tests will incur costs.)*
+
+---
+
+## Task 1.7: Backend - Parse AI Response
+
+*   **Goal:** Implement the parsing logic within the backend service to extract the distinct TypeScript, HTML, and SCSS code blocks from the raw VLM response using the expected Markdown delimiters.
+*   **Location:** `backend/app/services/code_generator.py`
+*   **Detailed Steps:**
+    1.  Modify the `parse_ai_response` function in `backend/app/services/code_generator.py`. Replace the stub implementation with actual parsing logic:
+        ```python
+        import re # Ensure re is imported at the top
+
+        # ... (Keep ANGULAR_CODE_PROMPT and generate_code_from_image_service)
+
+        def parse_ai_response(raw_response: str | None) -> tuple[str, str, str]:
+            """
+            Parses the raw AI response string to extract code blocks
+            delimited by Markdown fenced code blocks (```lang ... ```).
+            Returns a tuple: (typescript_code, html_code, scss_code)
+            """
+            if not raw_response:
+                print("Parsing skipped: Raw response is empty or None.")
+                return ("", "", "")
+
+            print("Attempting to parse AI response for code blocks...")
+            ts_code = ""
+            html_code = ""
+            scss_code = ""
+
+            # Regex patterns to capture content within fenced code blocks
+            # re.DOTALL allows '.' to match newlines. re.IGNORECASE handles case variations.
+            # Using non-greedy match (.*?) is important.
+            ts_pattern = r"```typescript(?:.*\n)(.*?)```"
+            html_pattern = r"```html(?:.*\n)(.*?)```"
+            scss_pattern = r"```scss(?:.*\n)(.*?)```"
+            css_pattern = r"```css(?:.*\n)(.*?)```" # Fallback for CSS if SCSS fails
+
+            # Extract TypeScript
+            ts_match = re.search(ts_pattern, raw_response, re.DOTALL | re.IGNORECASE)
+            if ts_match:
+                ts_code = ts_match.group(1).strip()
+                print(f"Successfully parsed TypeScript block ({len(ts_code)} chars).")
+            else:
+                print("Parsing warning: TypeScript block (```typescript) not found.")
+
+            # Extract HTML
+            html_match = re.search(html_pattern, raw_response, re.DOTALL | re.IGNORECASE)
+            if html_match:
+                html_code = html_match.group(1).strip()
+                print(f"Successfully parsed HTML block ({len(html_code)} chars).")
+            else:
+                print("Parsing warning: HTML block (```html) not found.")
+
+            # Extract SCSS (or CSS fallback)
+            scss_match = re.search(scss_pattern, raw_response, re.DOTALL | re.IGNORECASE)
+            if scss_match:
+                scss_code = scss_match.group(1).strip()
+                print(f"Successfully parsed SCSS block ({len(scss_code)} chars).")
+            else:
+                print("Parsing info: SCSS block (```scss) not found, checking for CSS...")
+                css_match = re.search(css_pattern, raw_response, re.DOTALL | re.IGNORECASE)
+                if css_match:
+                    scss_code = css_match.group(1).strip() # Store CSS in SCSS field
+                    print(f"Successfully parsed CSS block (fallback) ({len(scss_code)} chars).")
+                else:
+                    print("Parsing warning: SCSS/CSS block (```scss or ```css) not found.")
+
+
+            if not ts_code and not html_code and not scss_code:
+                 print("Parsing Error: Could not extract any structured code blocks from the AI response.")
+                 # Optional: Decide if returning raw response in one field is desired fallback
+                 # html_code = f"<!-- PARSING FAILED. Raw Response Below:\n{raw_response}\n-->"
+
+            return (ts_code, html_code, scss_code)
+        ```
+    2.  Verify that the `generate_code_from_image_endpoint` in `backend/app/api/v1/endpoints/generate_image.py` correctly calls this updated `parse_ai_response` function and uses its 3 returned values to populate the `GeneratedCode` model fields `component_ts`, `component_html`, and `component_scss` (this should already be correct from Task 1.6's endpoint implementation).
+*   **Expected Result & Test Cases:**
+    *   **Test 1.7.1:** Restart the backend server.
+    *   **Test 1.7.2:** Use the frontend UI / Postman to send a POST request with an image that, based on Task 1.6 tests, yielded a raw AI response containing the expected ```typescript, ```html, and ```scss (or ```css) delimited blocks.
+    *   **Test 1.7.3:** Examine backend logs. **Expected:** Logs should show "Attempting to parse..." followed by "Successfully parsed..." messages for each type of code block found by the regex patterns. If a block isn't found, the corresponding "Parsing warning/info..." message should appear. If *no* blocks are found, the "Parsing Error..." message should appear.
+    *   **Test 1.7.4:** Examine the HTTP response received by the client (e.g., frontend console log `Raw API Response:`). **Expected:**
+        *   Response Status Code: `200 OK`.
+        *   Response Body: JSON `GeneratedCode` object where the `component_ts`, `component_html`, and `component_scss` fields now contain *only the code* extracted from between the respective markdown delimiters. The delimiters themselves and any surrounding explanatory text from the AI should be stripped out. If a specific block (e.g., `scss`) was not present in the AI response, its corresponding field in the JSON should be an empty string `""`.
+
+---
+
+## Task 1.8: Frontend - Display Generated Code
+
+*   **Goal:** Create a dedicated component to display the received TS, HTML, and SCSS code strings clearly in the UI, replacing the simple placeholder text.
 *   **Location:** `frontend/src/app/components/code-viewer/`, `frontend/src/app/pages/generator-page/`
-*   **Actions:**
-    *   Create `CodeViewerComponent`.
-    *   Add `@Input()` properties for `typescriptCode: string`, `htmlCode: string`, `scssCode: string`.
-    *   Inside `CodeViewerComponent`'s template, use simple `<pre><code>` tags initially to display each code string. Add titles (TS, HTML, SCSS).
-    *   In `GeneratorPageComponent`:
-        *   Add a property to hold the received `GeneratedCode` object (or individual code strings). Initialize as null/empty.
-        *   Use `*ngIf` to only show the `CodeViewerComponent` when code data is available.
-        *   Pass the received code strings to the `CodeViewerComponent` inputs.
-        *   Add a basic loading indicator (e.g., `mat-spinner`) shown while the API call is in progress.
-*   **Result:** User uploads image -> Loading indicator shows -> Backend processes -> Code strings appear in designated areas on the frontend.
+*   **Detailed Steps:**
+    1.  Run `ng generate component components/CodeViewer --standalone --skip-tests`.
+    2.  Implement `frontend/src/app/components/code-viewer/code-viewer.component.ts`:
+        ```typescript
+        import { Component, Input } from '@angular/core';
+        import { CommonModule } from '@angular/common';
+        import { MatTabsModule } from '@angular/material/tabs'; // Import Tabs Module
 
-**Task 1.9: Frontend - Basic Static Preview (Iframe)**
+        @Component({
+          selector: 'app-code-viewer',
+          standalone: true,
+          // Add MatTabsModule for better code switching
+          imports: [CommonModule, MatTabsModule],
+          templateUrl: './code-viewer.component.html',
+          styleUrl: './code-viewer.component.scss'
+        })
+        export class CodeViewerComponent {
+          // Accept GeneratedCode object directly or individual strings
+          @Input() generatedCode: {
+              component_ts: string;
+              component_html: string;
+              component_scss: string;
+          } | null = null;
 
-*   **Goal:** Render the generated HTML styled by Tailwind in a sandboxed iframe.
-*   **Location:** `frontend/src/app/components/preview-pane/`, `frontend/src/app/pages/generator-page/`, `frontend/src/app/services/preview.service.ts` (Optional service, can be logic within PreviewPane)
-*   **Actions:**
-    *   Create `PreviewPaneComponent`.
-    *   Add an `@Input() htmlContent: string`. Add an `@Input() cssContent: string` (though the SCSS won't be directly usable here, the Tailwind classes in HTML are key).
-    *   In the component's template, add an `<iframe>` element.
-    *   In the `.ts` file, use Angular's `DomSanitizer` to bypass security for the `srcdoc` attribute.
-    *   When `htmlContent` input changes, construct the `srcdoc` value. This string should be a full HTML document containing:
-        *   A `<head>` section linking to the TailwindCSS CDN (`<script src="https://cdn.tailwindcss.com"></script>`). *This is crucial for MVP preview.*
-        *   Optionally, link to Angular Material theme CSS CDN for basic Material styles (won't make components interactive).
-        *   A `<body>` tag containing the received `htmlContent`.
-    *   Bind the sanitized `srcdoc` string to the `<iframe>`'s `[srcdoc]` attribute.
-    *   In `GeneratorPageComponent`, add the `<app-preview-pane>` and pass the received `component_html` string to its input. Only show when HTML is available.
-*   **Result:** After code generation, the preview pane attempts to render the generated HTML structure, styled using Tailwind via CDN. Angular Material components will appear as their base HTML elements styled by Tailwind/Material theme CSS, but without Angular functionality.
+          get tsCode(): string { return this.generatedCode?.component_ts || ''; }
+          get htmlCode(): string { return this.generatedCode?.component_html || ''; }
+          get scssCode(): string { return this.generatedCode?.component_scss || ''; }
 
-**MVP Complete:** At this point, the application fulfills the core loop: upload image -> send to backend -> call AI -> parse response -> display TS/HTML/SCSS code -> show static HTML/Tailwind preview. It's runnable and demonstrates the basic concept. Further enhancements (Figma, better preview, accuracy improvements, code editing, error handling, etc.) build upon this foundation.
+          get hasCode(): boolean {
+              return !!(this.tsCode || this.htmlCode || this.scssCode);
+          }
+
+          // Basic copy to clipboard (add error handling/feedback later)
+          copyToClipboard(text: string, type: string) {
+              navigator.clipboard.writeText(text).then(() => {
+                  console.log(`${type} code copied to clipboard!`);
+                  // Add user feedback (e.g., snackbar) later
+              }).catch(err => {
+                  console.error('Failed to copy code: ', err);
+              });
+          }
+        }
+        ```
+    3.  Implement `frontend/src/app/components/code-viewer/code-viewer.component.html` using Material Tabs for better viewing:
+        ```html
+        <div *ngIf="hasCode; else noCode" class="code-viewer-container border rounded">
+          <mat-tab-group animationDuration="0ms">
+            <mat-tab label="HTML (.html)" *ngIf="htmlCode">
+              <div class="relative p-1 bg-gray-800 rounded-b">
+                 <button mat-icon-button class="absolute top-1 right-1 z-10 text-gray-400 hover:text-white"
+                        title="Copy HTML" (click)="copyToClipboard(htmlCode, 'HTML')">
+                    <span class="material-icons text-sm">content_copy</span>
+                 </button>
+                 <pre class="bg-gray-800 text-white p-3 rounded-b overflow-x-auto text-sm max-h-96"><code class="language-html">{{ htmlCode }}</code></pre>
+              </div>
+            </mat-tab>
+
+            <mat-tab label="TypeScript (.ts)" *ngIf="tsCode">
+              <div class="relative p-1 bg-gray-800 rounded-b">
+                 <button mat-icon-button class="absolute top-1 right-1 z-10 text-gray-400 hover:text-white"
+                        title="Copy TypeScript" (click)="copyToClipboard(tsCode, 'TypeScript')">
+                    <span class="material-icons text-sm">content_copy</span>
+                 </button>
+                 <pre class="bg-gray-800 text-white p-3 rounded-b overflow-x-auto text-sm max-h-96"><code class="language-typescript">{{ tsCode }}</code></pre>
+              </div>
+            </mat-tab>
+
+            <mat-tab label="SCSS (.scss)" *ngIf="scssCode">
+               <div class="relative p-1 bg-gray-800 rounded-b">
+                 <button mat-icon-button class="absolute top-1 right-1 z-10 text-gray-400 hover:text-white"
+                        title="Copy SCSS" (click)="copyToClipboard(scssCode, 'SCSS')">
+                    <span class="material-icons text-sm">content_copy</span>
+                 </button>
+                 <pre class="bg-gray-800 text-white p-3 rounded-b overflow-x-auto text-sm max-h-96"><code class="language-scss">{{ scssCode }}</code></pre>
+               </div>
+            </mat-tab>
+          </mat-tab-group>
+        </div>
+
+        <ng-template #noCode>
+          <div class="text-center text-gray-500 py-4">
+            No code blocks were generated or parsed successfully.
+          </div>
+        </ng-template>
+        ```
+        *(Note: Proper syntax highlighting requires integrating a library like Prism.js or Monaco Editor, deferred post-MVP. Add `MatIconModule` import if icons are used).*
+    4.  Update `frontend/src/app/pages/generator-page/generator-page.component.ts`: Import `CodeViewerComponent` and add it to the `imports` array.
+        ```typescript
+        // ... other imports
+        import { CodeViewerComponent } from '../../components/code-viewer/code-viewer.component'; // Import
+        import { MatIconModule } from '@angular/material/icon'; // If using icons
+
+        @Component({
+          // ...
+          imports: [
+              // ... other modules like CommonModule, ImageUploaderComponent, MatProgressSpinnerModule
+              CodeViewerComponent, // Add CodeViewerComponent
+              MatIconModule // Add if MatIcon used
+          ],
+          // ...
+        })
+        export class GeneratorPageComponent {
+            // ... existing properties: selectedFile, generatedCode, isLoading, errorMessage ...
+            // ... existing methods: constructor, onImageUploaded, formatBytes ...
+        }
+        ```
+    5.  Update `frontend/src/app/pages/generator-page/generator-page.component.html`: Replace the code display placeholder with the new component.
+        ```html
+        <!-- Keep Header, Upload Section, Loading/Error Display -->
+
+        <!-- Code Display Section -->
+        <h2 class="text-xl font-semibold mt-6 mb-2">2. Generated Code</h2>
+        <div class="min-h-[100px]"> {/* Keep min-height container */}
+           <app-code-viewer *ngIf="!isLoading && !errorMessage" [generatedCode]="generatedCode"></app-code-viewer>
+           <div *ngIf="!isLoading && !errorMessage && !generatedCode" class="text-gray-500 text-center py-4">
+               Generated code will appear here after uploading an image.
+           </div>
+        </div>
+
+        <!-- Keep Preview Placeholder -->
+        ```
+*   **Expected Result & Test Cases:**
+    *   **Test 1.8.1:** Run both backend and frontend servers.
+    *   **Test 1.8.2:** Upload an image that successfully generated parsed code (TS, HTML, SCSS) in Task 1.7.
+    *   **Test 1.8.3:** After loading completes, **Expected:**
+        *   The "Generated Code" section now contains Material Design Tabs (e.g., "HTML (.html)", "TypeScript (.ts)", "SCSS (.scss)").
+        *   The first tab (HTML) is active by default.
+        *   Inside the active tab, a dark (`bg-gray-800`) `<pre>` block displays the corresponding extracted code string. The code should be clean (no markdown delimiters).
+        *   A small "copy" icon/button is visible within the code block area. Clicking it should log a success message to the console (e.g., "HTML code copied...").
+        *   Clicking other tabs (e.g., "TypeScript") switches the view to show the corresponding code block.
+        *   If a specific code block (e.g., SCSS) was empty in the backend response, its corresponding tab should *not* be rendered (due to `*ngIf` on the `<mat-tab>`).
+    *   **Test 1.8.4:** Upload an image that results in the backend failing to parse *any* code blocks (e.g., if the AI response format was wrong). **Expected:** The `CodeViewerComponent` should display the "No code blocks were generated..." message (from the `#noCode` template).
+
+---
+
+## Task 1.9: Frontend - Basic Static Preview (Iframe)
+
+*   **Goal:** Render the generated HTML code within a sandboxed `<iframe>`, applying TailwindCSS styling via its CDN link for a basic visual preview.
+*   **Location:** `frontend/src/app/components/preview-pane/`, `frontend/src/app/pages/generator-page/`
+*   **Detailed Steps:**
+    1.  Run `ng generate component components/PreviewPane --standalone --skip-tests`.
+    2.  Implement `frontend/src/app/components/preview-pane/preview-pane.component.ts`:
+        ```typescript
+        import { Component, Input, OnChanges, SimpleChanges, SecurityContext } from '@angular/core';
+        import { CommonModule } from '@angular/common';
+        import { DomSanitizer, SafeHtml } from '@angular/platform-browser'; // Use SafeHtml for srcdoc
+
+        @Component({
+          selector: 'app-preview-pane',
+          standalone: true,
+          imports: [CommonModule],
+          templateUrl: './preview-pane.component.html',
+          styleUrl: './preview-pane.component.scss'
+        })
+        export class PreviewPaneComponent implements OnChanges {
+          // Receive only the HTML content needed for preview
+          @Input() htmlContent: string | null | undefined = '';
+
+          // Use SafeHtml for binding to [srcdoc]
+          previewSrcDocContent: SafeHtml | null = null;
+
+          constructor(private sanitizer: DomSanitizer) {}
+
+          ngOnChanges(changes: SimpleChanges): void {
+            // Update preview when htmlContent input changes
+            if (changes['htmlContent']) {
+              this.updatePreview();
+            }
+          }
+
+          private updatePreview(): void {
+            if (this.htmlContent && this.htmlContent.trim().length > 0) {
+              const fullHtml = this.constructFullHtmlForSrcDoc(this.htmlContent);
+              // Sanitize the *entire* HTML string intended for srcdoc
+              // bypassSecurityTrustHtml is appropriate here as we construct the full trusted HTML
+              this.previewSrcDocContent = this.sanitizer.bypassSecurityTrustHtml(fullHtml);
+              console.log("Preview pane updated with new content.");
+            } else {
+              // Clear preview if input HTML is empty or null
+              this.previewSrcDocContent = null;
+              console.log("Preview pane cleared (no HTML content).");
+            }
+          }
+
+          /**
+           * Constructs the full HTML document string for the iframe's srcdoc attribute.
+           * Includes Tailwind CDN and basic resets.
+           */
+          private constructFullHtmlForSrcDoc(bodyContent: string): string {
+            // IMPORTANT: Ensure CDN links are correct and working
+            const tailwindCdnUrl = "https://cdn.tailwindcss.com";
+            // Optional: Link Material Icons font
+            const materialIconsUrl = "https://fonts.googleapis.com/icon?family=Material+Icons";
+            // Optional: Link Roboto font
+            const robotoFontUrl = "https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap";
+            // Optional: Link prebuilt Material theme CSS (choose one, check version compatibility)
+            // const materialThemeUrl = "https://cdnjs.cloudflare.com/ajax/libs/angular-material/17.0.4/prebuilt-themes/indigo-pink.min.css"; // Example URL, verify
+
+            return `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="${tailwindCdnUrl}"></script>
+  <link href="${materialIconsUrl}" rel="stylesheet">
+  <link href="${robotoFontUrl}" rel="stylesheet">
+  <!-- <link href="${materialThemeUrl}" rel="stylesheet"> --> {/* Uncomment if using theme CDN */}
+  <style>
+    /* Basic reset */
+    body { margin: 0; font-family: Roboto, "Helvetica Neue", sans-serif; }
+  </style>
+  <title>Preview</title>
+</head>
+{/* Add mat-typography class if Material theme CDN is included */}
+<body class="${''/* materialThemeUrl ? 'mat-typography' : '' */}">
+  ${bodyContent} {/* Inject the generated HTML content */}
+</body>
+</html>`;
+          }
+        }
+        ```
+    3.  Implement `frontend/src/app/components/preview-pane/preview-pane.component.html`:
+        ```html
+        <div class="preview-container border rounded bg-gray-50" style="height: 500px;"> {/* Set desired height */}
+          <iframe
+            *ngIf="previewSrcDocContent"
+            [srcdoc]="previewSrcDocContent"
+            frameborder="0"
+            class="w-full h-full"
+            title="Generated Component Static Preview"
+            sandbox="allow-scripts allow-same-origin" {/* Basic sandbox */} >
+          </iframe>
+          <div *ngIf="!previewSrcDocContent" class="flex items-center justify-center h-full text-gray-400">
+            Preview will appear here once code is generated.
+          </div>
+        </div>
+        ```
+    4.  Update `frontend/src/app/pages/generator-page/generator-page.component.ts`: Import `PreviewPaneComponent` and add to `imports`.
+        ```typescript
+        // ... other imports
+        import { PreviewPaneComponent } from '../../components/preview-pane/preview-pane.component'; // Import
+
+        @Component({
+          // ...
+          imports: [
+              // ... other modules: CommonModule, ImageUploaderComponent, MatProgressSpinnerModule, CodeViewerComponent, MatIconModule
+              PreviewPaneComponent // Add PreviewPaneComponent
+          ],
+          // ...
+        })
+        export class GeneratorPageComponent {
+             // ... existing properties ...
+             // Pass only the HTML part to the preview pane
+             get previewHtml(): string | null | undefined {
+                 return this.generatedCode?.component_html;
+             }
+        }
+        ```
+    5.  Update `frontend/src/app/pages/generator-page/generator-page.component.html`: Replace the preview placeholder with the new component, binding the HTML content.
+        ```html
+        <!-- Keep Header, Upload, Loading/Error, Code Display sections -->
+
+        <!-- Preview Section -->
+        <h2 class="text-xl font-semibold mt-6 mb-2">3. Preview</h2>
+        <div class="min-h-[200px]"> {/* Keep min-height container */}
+          <app-preview-pane *ngIf="!isLoading && !errorMessage" [htmlContent]="previewHtml"></app-preview-pane>
+           <div *ngIf="!isLoading && !errorMessage && !generatedCode" class="text-gray-500 text-center py-4">
+               Preview will appear here.
+           </div>
+        </div>
+        ```
+*   **Expected Result & Test Cases:**
+    *   **Test 1.9.1:** Run both backend and frontend servers. Ensure the browser running the frontend has internet access to reach the CDN(s).
+    *   **Test 1.9.2:** Upload an image that successfully generates valid HTML (`component_html`) containing Tailwind utility classes (e.g., `<div class="p-4 bg-blue-100"><button class="px-2 py-1 bg-red-500 text-white rounded">Test</button></div>`).
+    *   **Test 1.9.3:** After loading completes and the code viewer is populated, **Expected:**
+        *   The "Preview" section now contains an `<iframe>` element with a grey background (from the container).
+        *   Inside the `<iframe>`, the generated HTML structure (e.g., the red button inside the light blue div) is rendered.
+        *   Crucially, the Tailwind styling (padding, background colors, text color, rounding) defined by the classes in the generated HTML should be visually applied, fetched via the Tailwind CDN link specified in `constructFullHtmlForSrcDoc`.
+        *   Check the browser's Network tab (potentially filtering for requests initiated by the iframe) to confirm `cdn.tailwindcss.com` was loaded successfully within the iframe.
+        *   If the generated `component_html` was empty or null, the iframe should not render, and the "Preview will appear here..." message should be displayed instead.
+    *   **Test 1.9.4:** If the generated HTML included Material components like `<mat-icon>home</mat-icon>` or basic elements styled like Material (e.g., a button), **Expected:** The Material Icons font (if linked) should load, rendering the icon. Basic visual styles might be applied *if* the Material Theme CSS CDN was uncommented and loaded correctly, but Angular component behavior/interactivity will *not* work in this static preview.
+
+---
+
+## Task 1.10: Documentation - MVP Setup & Run Instructions
+
+*   **Goal:** Create a clear `README.md` file at the project root that enables another AI agent or developer to easily set up the environment, install dependencies, configure API keys, and run the MVP locally.
+*   **Location:** `angular-screenshot-to-code/README.md` (Project Root)
+*   **Detailed Steps:**
+    1.  Create or replace the content of `README.md` in the project's root directory (`angular-screenshot-to-code/`).
+    2.  Add the following content (or similar, adapt based on final choices):
+        ```markdown
+        # Screenshot to Angular Code Generator (MVP)
+
+        This project aims to convert UI screenshots/mockups into Angular components styled with Angular Material and TailwindCSS using AI. This README describes how to set up and run the Minimum Viable Product (MVP).
+
+        ## MVP Features
+
+        *   Upload an image (PNG, JPG, WEBP).
+        *   Send the image to a backend API.
+        *   Backend uses a Vision Language Model (VLM) API (e.g., GPT-4 Vision via OpenAI) to generate Angular code (TS, HTML, SCSS).
+        *   Display the generated code snippets in the frontend UI.
+        *   Show a basic static preview of the generated HTML styled with TailwindCSS (via CDN).
+
+        ## Prerequisites
+
+        *   **Node.js & npm:** Node.js v18+ recommended (check required version for your Angular CLI version).
+        *   **Python:** Python v3.9+ recommended.
+        *   **pip:** Python package installer (usually included with Python).
+        *   **VLM API Key:** You need an API key from a supported VLM provider (e.g., OpenAI).
+
+        ## Local Development Setup
+
+        Follow these steps to run the application locally:
+
+        **1. Backend Setup (FastAPI)**
+
+        *   Navigate to the backend directory:
+            ```bash
+            cd backend
+            ```
+        *   (Recommended) Create and activate a Python virtual environment:
+            ```bash
+            python -m venv venv
+            # On macOS/Linux:
+            source venv/bin/activate
+            # On Windows (cmd/powershell):
+            # venv\Scripts\activate
+            ```
+        *   Install Python dependencies:
+            ```bash
+            pip install -r requirements.txt
+            ```
+        *   Create a `.env` file by copying the example:
+            ```bash
+            cp .env.example .env
+            ```
+        *   **Edit the `.env` file** and add your VLM API key(s). Minimally, you need:
+            ```ini
+            OPENAI_API_KEY="sk-YourActualOpenAIKeyHere"
+            # AI_MODEL_NAME="gpt-4-vision-preview" # Optional: override default model
+            ```
+        *   Run the backend server (typically on port 8000):
+            ```bash
+            uvicorn app.main:app --reload --port 8000
+            ```
+            Keep this terminal window running.
+
+        **2. Frontend Setup (Angular)**
+
+        *   Open a **new terminal window/tab**.
+        *   Navigate to the frontend directory:
+            ```bash
+            cd frontend
+            ```
+            *(If you are already in the `backend` directory, use `cd ../frontend`)*
+        *   Install Node.js dependencies:
+            ```bash
+            npm install
+            ```
+        *   Run the frontend development server (typically on port 4200):
+            ```bash
+            ng serve --open
+            ```
+            This will compile the Angular app, start a development server, and open it in your default browser.
+
+        **3. Running the Application**
+
+        *   Ensure both the backend (Uvicorn) and frontend (ng serve) servers are running in their respective terminals.
+        *   Access the application in your browser, usually at `http://localhost:4200`.
+
+        ## Basic Usage (MVP)
+
+        1.  Click the "Upload Screenshot" button.
+        2.  Select a valid image file (PNG, JPG, WEBP) representing a UI you want to convert.
+        3.  Wait for the processing (a loading indicator should appear).
+        4.  If successful, the generated code (HTML, TypeScript, SCSS) will appear in tabs below the upload area.
+        5.  A static preview rendering the generated HTML (styled by Tailwind CDN) will appear in the preview section.
+        6.  If errors occur (e.g., invalid API key, server down, invalid image), an error message should be displayed.
+
+        *(Note: AI generation quality varies. API calls incur costs.)*
+        ```
+*   **Expected Result & Test Cases:**
+    *   **Test 1.10.1:** A file named `README.md` exists in the project root directory.
+    *   **Test 1.10.2:** The content of `README.md` matches the structure and information outlined in the detailed steps above.
+    *   **Test 1.10.3:** (Simulated/Actual) A user who has cloned the repository *only* follows the instructions within this `README.md`. **Expected:** The user can successfully:
+        *   Install backend dependencies.
+        *   Configure the `.env` file correctly.
+        *   Start the backend server without errors (assuming a valid API key is provided).
+        *   Install frontend dependencies.
+        *   Start the frontend server without errors.
+        *   Access the running application at `http://localhost:4200`.
+        *   Perform the basic usage flow described in the README and see results (code/preview) or appropriate error messages.
+
+---
+
+This concludes the MVP task list. Upon completion of Task 1.10, the core functionality should be implemented, runnable, and documented for basic local setup and execution.
