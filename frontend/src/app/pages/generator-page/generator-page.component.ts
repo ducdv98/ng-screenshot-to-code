@@ -6,6 +6,7 @@ import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { MatCardModule } from '@angular/material/card';
 import { ImageUploaderComponent } from '../../components/image-uploader/image-uploader.component';
 import { FigmaInputComponent } from '../../components/figma-input/figma-input.component';
 import { CodeViewerComponent } from '../../components/code-viewer/code-viewer.component';
@@ -25,6 +26,7 @@ import { FigmaInput } from '../../models/api-request.model';
     MatIconModule,
     MatButtonModule,
     MatTooltipModule,
+    MatCardModule,
     ImageUploaderComponent,
     FigmaInputComponent,
     CodeViewerComponent,

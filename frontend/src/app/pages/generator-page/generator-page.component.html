@@ -1,124 +1,147 @@
-<div class="container mx-auto p-4 flex flex-col h-screen">
-  <header class="mb-8 text-center">
-    <h1 class="text-3xl font-bold mb-2">Screenshot to Angular Code</h1>
+<div class="container mx-auto p-4 flex flex-col min-h-[calc(100vh-64px-64px)]">
+  <!-- Page Header -->
+  <header class="mb-6">
+    <h1 class="text-2xl md:text-3xl font-bold mb-2">Angular Component Generator</h1>
     <p class="text-gray-600">
-      Transform your UI designs into Angular components with Angular Material and TailwindCSS
+      Transform UI designs into Angular components with Material Design and TailwindCSS
     </p>
   </header>
   
   <!-- Loading indicator -->
   @if (isLoading) {
-    <div class="fixed top-0 left-0 w-full z-50">
-      <mat-progress-bar mode="indeterminate"></mat-progress-bar>
+    <div class="fixed top-16 left-0 w-full z-50">
+      <mat-progress-bar mode="indeterminate" color="accent"></mat-progress-bar>
     </div>
   }
   
   <!-- Error message -->
   @if (error) {
-    <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+    <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4 flex items-start">
+      <mat-icon class="mr-2 text-red-500">error_outline</mat-icon>
       <p>{{ error }}</p>
     </div>
   }
   
-  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 flex-grow">
-    <!-- Left panel: Input options -->
-    <div class="flex flex-col gap-6">
-      <mat-tab-group>
-        <!-- Image Upload Tab -->
-        <mat-tab label="Upload Screenshot">
-          <div class="p-4">
-            <app-image-uploader (fileSelected)="onImageSelected($event)"></app-image-uploader>
-          </div>
-        </mat-tab>
-        
-        <!-- Figma Input Tab -->
-        <mat-tab label="Figma Design">
-          <div class="p-4">
-            <app-figma-input (figmaSubmitted)="onFigmaSubmitted($event)"></app-figma-input>
-          </div>
-        </mat-tab>
-      </mat-tab-group>
-      
-      <!-- Preview Pane -->
+  <!-- Main Layout -->
+  <div class="grid grid-cols-1 xl:grid-cols-12 gap-6 flex-grow">
+    <!-- Left Panel: Input Options -->
+    <div class="col-span-1 xl:col-span-3 flex flex-col gap-6">
+      <mat-card class="flex-grow">
+        <mat-card-header>
+          <mat-card-title>Input</mat-card-title>
+          <mat-card-subtitle>Upload an image or provide Figma details</mat-card-subtitle>
+        </mat-card-header>
+        <mat-card-content>
+          <mat-tab-group class="input-tabs">
+            <!-- Image Upload Tab -->
+            <mat-tab label="Upload Screenshot">
+              <div class="p-4">
+                <app-image-uploader (fileSelected)="onImageSelected($event)"></app-image-uploader>
+              </div>
+            </mat-tab>
+            
+            <!-- Figma Input Tab -->
+            <mat-tab label="Figma Design">
+              <div class="p-4">
+                <app-figma-input (figmaSubmitted)="onFigmaSubmitted($event)"></app-figma-input>
+              </div>
+            </mat-tab>
+          </mat-tab-group>
+        </mat-card-content>
+      </mat-card>
+    </div>
+    
+    <!-- Middle Panel: Preview -->
+    <div class="col-span-1 xl:col-span-4 flex flex-col gap-6">
       <div class="preview-container flex-grow">
         <app-preview-pane [generatedCode]="generatedCode"></app-preview-pane>
       </div>
     </div>
     
-    <!-- Right panel: Generated Code -->
-    <div class="code-container flex flex-col">
-      <h2 class="text-xl font-bold mb-2">Generated Code</h2>
-      @if (generatedCode) {
-        <mat-tab-group class="flex-grow">
-          <mat-tab label="TypeScript">
-            <div class="p-2">
-              <div class="flex justify-between items-center mb-2">
-                <span class="text-sm">{{ generatedCode.component_name }}.component.ts</span>
-                <button 
-                  mat-icon-button 
-                  matTooltip="Copy TypeScript code"
-                  (click)="copyCode('ts')">
-                  <mat-icon>content_copy</mat-icon>
-                </button>
+    <!-- Right Panel: Generated Code -->
+    <div class="col-span-1 xl:col-span-5 flex flex-col gap-6">
+      <mat-card class="flex-grow code-container">
+        <mat-card-header>
+          <mat-card-title>
+            <span>Generated Code</span>
+            @if (generatedCode) {
+              <span class="text-sm text-gray-600 ml-2">({{ generatedCode.component_name }})</span>
+            }
+          </mat-card-title>
+        </mat-card-header>
+        <mat-card-content class="flex-grow p-0">
+          @if (generatedCode) {
+            <mat-tab-group class="h-full">
+              <mat-tab label="TypeScript">
+                <div class="p-2 code-tab-content">
+                  <div class="flex justify-between items-center mb-2">
+                    <span class="text-sm">{{ generatedCode.component_name }}.component.ts</span>
+                    <button 
+                      mat-icon-button 
+                      matTooltip="Copy TypeScript code"
+                      (click)="copyCode('ts')">
+                      <mat-icon>content_copy</mat-icon>
+                    </button>
+                  </div>
+                  <app-code-viewer 
+                    [showSingleEditor]="true"
+                    [code]="generatedCode.component_ts"
+                    [language]="'typescript'"
+                    [fileName]="generatedCode.component_name + '.component.ts'">
+                  </app-code-viewer>
+                </div>
+              </mat-tab>
+              
+              <mat-tab label="HTML">
+                <div class="p-2 code-tab-content">
+                  <div class="flex justify-between items-center mb-2">
+                    <span class="text-sm">{{ generatedCode.component_name }}.component.html</span>
+                    <button 
+                      mat-icon-button 
+                      matTooltip="Copy HTML code"
+                      (click)="copyCode('html')">
+                      <mat-icon>content_copy</mat-icon>
+                    </button>
+                  </div>
+                  <app-code-viewer 
+                    [showSingleEditor]="true"
+                    [code]="generatedCode.component_html"
+                    [language]="'html'"
+                    [fileName]="generatedCode.component_name + '.component.html'">
+                  </app-code-viewer>
+                </div>
+              </mat-tab>
+              
+              <mat-tab label="SCSS">
+                <div class="p-2 code-tab-content">
+                  <div class="flex justify-between items-center mb-2">
+                    <span class="text-sm">{{ generatedCode.component_name }}.component.scss</span>
+                    <button 
+                      mat-icon-button 
+                      matTooltip="Copy SCSS code"
+                      (click)="copyCode('scss')">
+                      <mat-icon>content_copy</mat-icon>
+                    </button>
+                  </div>
+                  <app-code-viewer 
+                    [showSingleEditor]="true"
+                    [code]="generatedCode.component_scss"
+                    [language]="'scss'"
+                    [fileName]="generatedCode.component_name + '.component.scss'">
+                  </app-code-viewer>
+                </div>
+              </mat-tab>
+            </mat-tab-group>
+          } @else {
+            <div class="flex-grow flex items-center justify-center p-6 bg-gray-50 rounded-lg h-full">
+              <div class="text-center">
+                <mat-icon class="text-gray-400 text-6xl mb-3">code</mat-icon>
+                <p class="text-gray-500">No code generated yet. Upload a screenshot or enter Figma details to generate code.</p>
               </div>
-              <app-code-viewer 
-                [showSingleEditor]="true"
-                [code]="generatedCode.component_ts"
-                [language]="'typescript'"
-                [fileName]="generatedCode.component_name + '.component.ts'">
-              </app-code-viewer>
             </div>
-          </mat-tab>
-          
-          <mat-tab label="HTML">
-            <div class="p-2">
-              <div class="flex justify-between items-center mb-2">
-                <span class="text-sm">{{ generatedCode.component_name }}.component.html</span>
-                <button 
-                  mat-icon-button 
-                  matTooltip="Copy HTML code"
-                  (click)="copyCode('html')">
-                  <mat-icon>content_copy</mat-icon>
-                </button>
-              </div>
-              <app-code-viewer 
-                [showSingleEditor]="true"
-                [code]="generatedCode.component_html"
-                [language]="'html'"
-                [fileName]="generatedCode.component_name + '.component.html'">
-              </app-code-viewer>
-            </div>
-          </mat-tab>
-          
-          <mat-tab label="SCSS">
-            <div class="p-2">
-              <div class="flex justify-between items-center mb-2">
-                <span class="text-sm">{{ generatedCode.component_name }}.component.scss</span>
-                <button 
-                  mat-icon-button 
-                  matTooltip="Copy SCSS code"
-                  (click)="copyCode('scss')">
-                  <mat-icon>content_copy</mat-icon>
-                </button>
-              </div>
-              <app-code-viewer 
-                [showSingleEditor]="true"
-                [code]="generatedCode.component_scss"
-                [language]="'scss'"
-                [fileName]="generatedCode.component_name + '.component.scss'">
-              </app-code-viewer>
-            </div>
-          </mat-tab>
-        </mat-tab-group>
-      } @else {
-        <div class="flex-grow flex items-center justify-center bg-gray-100 rounded-lg">
-          <p class="text-gray-500">No code generated yet. Upload a screenshot or enter Figma details to generate code.</p>
-        </div>
-      }
+          }
+        </mat-card-content>
+      </mat-card>
     </div>
   </div>
-  
-  <footer class="mt-8 py-4 text-center text-gray-500 text-sm">
-    <p>Built with Angular, Angular Material, and TailwindCSS</p>
-  </footer>
 </div> 
