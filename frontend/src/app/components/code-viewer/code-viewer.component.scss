@@ -1,0 +1,22 @@
+// Editor heights
+.editor-container {
+  height: 400px;
+  width: 100%;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+}
+
+// Make the tabs fill the available space
+:host {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.code-viewer {
+  height: 100%;
+}
+
+// Fix the tab content container height to fill available space
+::ng-deep .mat-mdc-tab-body-wrapper {
+  flex-grow: 1;
+} 

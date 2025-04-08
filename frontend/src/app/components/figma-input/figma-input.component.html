@@ -1,0 +1,63 @@
+<mat-card class="w-full p-6">
+  <form (ngSubmit)="onSubmit()" class="flex flex-col gap-4">
+    <!-- Figma URL -->
+    <mat-form-field appearance="outline" class="w-full">
+      <mat-label>Figma File URL</mat-label>
+      <input 
+        matInput 
+        type="url" 
+        placeholder="https://www.figma.com/file/..."
+        [(ngModel)]="figmaUrl" 
+        name="figmaUrl" 
+        required>
+      <mat-hint>URL to your Figma file</mat-hint>
+      <mat-icon matPrefix>link</mat-icon>
+    </mat-form-field>
+    
+    <!-- Node ID (optional) -->
+    <mat-form-field appearance="outline" class="w-full">
+      <mat-label>Node ID (Optional)</mat-label>
+      <input 
+        matInput 
+        placeholder="Select specific frame/component"
+        [(ngModel)]="nodeId" 
+        name="nodeId">
+      <mat-hint>Find in Figma by right-clicking a frame and selecting "Copy/Paste as"</mat-hint>
+      <mat-icon matPrefix>select_all</mat-icon>
+    </mat-form-field>
+    
+    <!-- Access Token -->
+    <mat-form-field appearance="outline" class="w-full">
+      <mat-label>Figma Access Token</mat-label>
+      <input 
+        matInput 
+        type="password" 
+        placeholder="Personal access token from Figma settings"
+        [(ngModel)]="accessToken" 
+        name="accessToken" 
+        required>
+      <mat-hint>Get your personal access token from Figma Account Settings</mat-hint>
+      <mat-icon matPrefix>vpn_key</mat-icon>
+    </mat-form-field>
+    
+    <!-- Action buttons -->
+    <div class="flex justify-end gap-2">
+      <button 
+        mat-button 
+        type="button" 
+        (click)="clearForm()" 
+        [disabled]="isSubmitting">
+        Clear
+      </button>
+      
+      <button 
+        mat-raised-button 
+        color="primary" 
+        type="submit" 
+        [disabled]="!figmaUrl || !accessToken || isSubmitting">
+        <mat-icon>send</mat-icon>
+        Generate from Figma
+      </button>
+    </div>
+  </form>
+</mat-card> 

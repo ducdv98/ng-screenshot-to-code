@@ -1,0 +1,83 @@
+---
+description: This rule governs Angular and TypeScript development practices across the entire project. It should be considered whenever (1) Planning new Angular components or services, (2) Modifying existing TypeScript code, (3) Reviewing or fixing code-related bugs, (4) Making architectural decisions that involve TypeScript or Angular, (5) Creating new TypeScript files or refactoring existing ones. The rule ensures consistent type safety, modern Angular patterns, and maintainable code structure. It's particularly crucial when dealing with component structures, service implementations, state management, and coding patterns.
+globs: 
+alwaysApply: false
+---
+
+# Angular and TypeScript Best Practices
+
+## Critical Rules
+
+- Follow Angular standalone components architecture for all new components - import dependencies directly in each component
+- Use full TypeScript with proper interfaces - avoid the `any` type in favor of explicitly defined types
+- Use Angular's signals system for reactive state management in components and services
+- Prefer the `inject()` function over constructor injection for dependency injection
+- Apply immutability principles and pure functions wherever possible, especially in services
+- Organize component and service files with imports first, followed by class definition, properties, lifecycle methods, and other methods
+- Use kebab-case for file names (e.g., `user-profile.component.ts`) and match Angular's conventions for file suffixes
+- Use single quotes for strings, 2-space indentation, and semicolons at the end of statements
+- Apply TailwindCSS utility classes directly in HTML templates for styling, minimizing custom CSS
+- Implement appropriate error handling with custom error types or factories as needed
+- Use NgOptimizedImage for better image loading and performance
+- Apply trackBy function with ngFor to optimize rendering of lists
+- Use the async pipe in templates to subscribe to observables whenever possible
+- Use optional chaining (`?.`) and nullish coalescing (`??`) operators to handle null/undefined values
+
+## Examples
+
+<example>
+// Good component structure with standalone architecture
+import { Component, inject } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { MatButtonModule } from '@angular/material/button';
+import { UserService } from '../../services/user.service';
+import { User } from '../../models/user.model';
+
+@Component({
+  selector: 'app-user-profile',
+  standalone: true,
+  imports: [CommonModule, MatButtonModule],
+  templateUrl: './user-profile.component.html',
+  styleUrls: ['./user-profile.component.scss']
+})
+export class UserProfileComponent {
+  private userService = inject(UserService);
+  
+  user$ = this.userService.getCurrentUser();
+  
+  updateProfile(updatedUser: User): void {
+    this.userService.updateProfile(updatedUser).subscribe({
+      next: (result) => console.log('Profile updated', result),
+      error: (err) => console.error('Update failed', err)
+    });
+  }
+}
+</example>
+
+<example type="invalid">
+// Bad practice - using any type and constructor injection
+import { Component } from '@angular/core';
+
+@Component({
+  selector: 'app-user-profile',
+  templateUrl: './user-profile.component.html',
+  styleUrls: ['./user-profile.component.scss']
+})
+export class UserProfileComponent {
+  userData: any;
+  
+  constructor(private userSvc: any) {}
+  
+  ngOnInit() {
+    this.userSvc.getUser().subscribe(data => {
+      this.userData = data;
+    });
+  }
+  
+  updateProfile() {
+    // Direct mutation of state
+    this.userData.name = "New Name";
+    this.userSvc.update(this.userData);
+  }
+}
+</example> 

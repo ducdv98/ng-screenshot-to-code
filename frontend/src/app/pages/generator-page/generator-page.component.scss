@@ -1,0 +1,17 @@
+// Component takes full height by using flex column
+:host {
+  display: block;
+  min-height: 100vh;
+}
+
+// Set fixed heights for containers
+.preview-container, .code-container {
+  height: 500px;
+}
+
+// Responsive design for smaller screens
+@media (max-width: 1024px) {
+  .preview-container, .code-container {
+    height: 400px;
+  }
+} 

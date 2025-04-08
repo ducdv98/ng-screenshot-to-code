@@ -1,0 +1,66 @@
+---
+description: This rule provides guidance for the project structure organization. Use it when (1) Creating new files or directories, (2) Deciding where to place new components, services, or models, (3) Refactoring code organization, (4) Planning new features and determining file locations. The rule ensures consistency with the project's organizational patterns, proper module separation, and clear delineation between frontend and backend responsibilities.
+globs: 
+alwaysApply: false
+---
+
+# Project Structure Organization
+
+## Critical Rules
+
+- Follow the established directory structure for both frontend and backend
+- Frontend angular components are located in `frontend/src/app/components/`
+- Frontend pages are located in `frontend/src/app/pages/`
+- Frontend services are located in `frontend/src/app/services/`
+- Frontend models/interfaces are located in `frontend/src/app/models/`
+- Backend API endpoints are located in `backend/app/api/v1/endpoints/`
+- Backend services are located in `backend/app/services/`
+- Backend models are located in `backend/app/models/`
+- Backend utility functions are located in `backend/app/utils/`
+- Follow the appropriate file naming convention for each part of the stack:
+  - Frontend: kebab-case for filenames with appropriate suffixes (e.g., `.component.ts`, `.service.ts`)
+  - Backend: snake_case for Python files
+- All environment-specific configuration should be in the appropriate environment files and accessed via environment variables
+
+## Examples
+
+<example>
+# Good Frontend File Structure Example
+
+frontend/
+├── src/
+│   ├── app/
+│   │   ├── components/                # Reusable UI components
+│   │   │   ├── image-uploader/        # Image uploader component
+│   │   │   │   ├── image-uploader.component.html
+│   │   │   │   ├── image-uploader.component.scss
+│   │   │   │   └── image-uploader.component.ts
+│   │   ├── pages/                     # Top-level pages
+│   │   │   └── generator-page/
+│   │   │       ├── generator-page.component.html
+│   │   │       ├── generator-page.component.scss
+│   │   │       └── generator-page.component.ts
+│   │   ├── services/                  # Angular services
+│   │   │   └── api.service.ts
+│   │   ├── models/                    # TypeScript interfaces
+│   │   │   └── generated-code.model.ts
+│   │   ├── app.component.html         # Root component
+│   │   ├── app.component.scss
+│   │   ├── app.component.ts
+│   │   └── app.routes.ts              # Application routes
+</example>
+
+<example type="invalid">
+# Bad organization example
+
+frontend/
+├── src/
+│   ├── app/
+│   │   ├── ImageUploader.jsx          # Wrong file extension, not following Angular patterns
+│   │   ├── ApiService.js              # Not in services folder, missing .service.ts suffix
+│   │   ├── components/
+│   │   │   └── randomComponent/       # Not descriptive component name
+│   │   │       └── index.ts           # Not following Angular component naming conventions
+│   │   ├── Models.ts                  # All models in one file, not in models folder
+│   │   └── pages.ts                   # All pages in one file, not following proper organization
+</example> 

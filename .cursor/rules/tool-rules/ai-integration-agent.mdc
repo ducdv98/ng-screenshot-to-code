@@ -1,0 +1,89 @@
+---
+description: This rule provides guidance for AI integration in the project. Use it when (1) Working with OpenAI or Anthropic APIs, (2) Processing images or Figma designs with AI, (3) Generating Angular components from AI responses, (4) Improving prompt engineering, or (5) Handling AI-generated code. The rule ensures consistent AI integration approaches, proper error handling for AI services, and optimal management of AI-related configuration.
+globs: 
+alwaysApply: false
+---
+
+# AI Integration Guidelines
+
+## Critical Rules
+
+- AI API keys must always be stored in environment variables, never hardcoded
+- All AI service calls should include proper error handling with meaningful error messages
+- Implement rate limiting and retry logic for AI API calls
+- Structure AI prompts to be specific about Angular components, Material design, and TailwindCSS
+- Always validate and sanitize AI responses before using them in the application
+- Use streaming responses where appropriate for better user experience
+- Structure prompts to request code in specific formats that can be easily parsed
+- Parse AI-generated code into appropriate TypeScript, HTML, and SCSS components
+- Include appropriate debug logging for AI interactions to facilitate troubleshooting
+- Implement proper request timeouts for AI service calls
+- Cache AI results where appropriate to avoid unnecessary API calls
+- Ensure the backend provides consistent response formats for both OpenAI and Anthropic integrations
+
+## Examples
+
+<example>
+// Good AI integration in service
+
+import { Injectable } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { Observable, throwError } from 'rxjs';
+import { catchError, timeout, retry } from 'rxjs/operators';
+import { environment } from '../../environments/environment';
+import { GeneratedCode } from '../models/generated-code.model';
+
+@Injectable({
+  providedIn: 'root'
+})
+export class AIService {
+  private apiUrl = environment.apiUrl;
+  
+  constructor(private http: HttpClient) {}
+  
+  generateCodeFromImage(image: File): Observable<GeneratedCode> {
+    const formData = new FormData();
+    formData.append('file', image);
+    
+    return this.http.post<GeneratedCode>(`${this.apiUrl}/generate-from-image`, formData)
+      .pipe(
+        timeout(60000), // 1-minute timeout
+        retry(1),       // Retry once on failure
+        catchError(error => {
+          console.error('Error generating code from image:', error);
+          return throwError(() => new Error('Failed to generate code from image. Please try again.'));
+        })
+      );
+  }
+}
+</example>
+
+<example type="invalid">
+// Bad AI integration example
+
+class ImageProcessor {
+  constructor() {
+    // Hardcoded API key - security risk
+    this.apiKey = "sk-1234567890abcdef";
+  }
+  
+  // No error handling or timeout
+  async generateCode(imageData) {
+    const response = await fetch("https://api.openai.com/v1/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${this.apiKey}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        model: "gpt-4",
+        prompt: "Generate some code", // Vague prompt
+        max_tokens: 500
+      })
+    });
+    
+    const json = await response.json();
+    return json.choices[0].text; // No validation or parsing
+  }
+}
+</rewritten_file> 

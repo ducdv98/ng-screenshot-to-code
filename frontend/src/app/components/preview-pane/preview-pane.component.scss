@@ -1,0 +1,17 @@
+:host {
+  display: block;
+  height: 100%;
+}
+
+.preview-container {
+  height: 100%;
+}
+
+.preview-content {
+  overflow: hidden;
+}
+
+// Make the iframe fill its container
+iframe {
+  min-height: 400px;
+} 

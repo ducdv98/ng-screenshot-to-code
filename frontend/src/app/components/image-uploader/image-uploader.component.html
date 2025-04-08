@@ -1,0 +1,56 @@
+<div class="w-full">
+  <mat-card 
+    class="w-full p-6" 
+    [class.border-2]="isDragging" 
+    [class.border-dashed]="isDragging" 
+    [class.border-blue-500]="isDragging"
+    (dragover)="onDragOver($event)" 
+    (dragleave)="onDragLeave($event)" 
+    (drop)="onDrop($event)">
+    
+    <div class="flex flex-col items-center justify-center gap-4">
+      <!-- Hidden file input -->
+      <input 
+        type="file" 
+        id="file-input" 
+        accept="image/*" 
+        class="hidden" 
+        (change)="onFileSelected($event)">
+      
+      <!-- Preview area -->
+      @if (previewUrl) {
+        <div class="w-full max-h-80 overflow-hidden rounded-lg mb-4">
+          <img [src]="previewUrl" class="w-full object-contain" alt="Preview">
+        </div>
+      } @else {
+        <mat-icon class="text-6xl text-gray-400">image</mat-icon>
+        <p class="text-center text-gray-500">Drag and drop an image here, or click to select</p>
+      }
+      
+      <!-- Upload button -->
+      <button 
+        mat-raised-button 
+        color="primary" 
+        type="button" 
+        (click)="triggerFileInput()" 
+        [disabled]="isUploading">
+        <mat-icon>upload</mat-icon>
+        {{ previewUrl ? 'Change Image' : 'Upload Image' }}
+      </button>
+      
+      <!-- File name and progress -->
+      @if (selectedFileName) {
+        <p class="text-sm text-gray-600 mt-2">{{ selectedFileName }}</p>
+      }
+      
+      <!-- Progress bar -->
+      @if (isUploading) {
+        <mat-progress-bar
+          mode="determinate"
+          [value]="uploadProgress"
+          class="w-full mt-4">
+        </mat-progress-bar>
+      }
+    </div>
+  </mat-card>
+</div> 
