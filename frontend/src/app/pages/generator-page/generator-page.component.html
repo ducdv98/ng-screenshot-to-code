@@ -46,8 +46,75 @@
     </div>
     
     <!-- Right panel: Generated Code -->
-    <div class="code-container">
-      <app-code-viewer [generatedCode]="generatedCode"></app-code-viewer>
+    <div class="code-container flex flex-col">
+      <h2 class="text-xl font-bold mb-2">Generated Code</h2>
+      @if (generatedCode) {
+        <mat-tab-group class="flex-grow">
+          <mat-tab label="TypeScript">
+            <div class="p-2">
+              <div class="flex justify-between items-center mb-2">
+                <span class="text-sm">{{ generatedCode.component_name }}.component.ts</span>
+                <button 
+                  mat-icon-button 
+                  matTooltip="Copy TypeScript code"
+                  (click)="copyCode('ts')">
+                  <mat-icon>content_copy</mat-icon>
+                </button>
+              </div>
+              <app-code-viewer 
+                [showSingleEditor]="true"
+                [code]="generatedCode.component_ts"
+                [language]="'typescript'"
+                [fileName]="generatedCode.component_name + '.component.ts'">
+              </app-code-viewer>
+            </div>
+          </mat-tab>
+          
+          <mat-tab label="HTML">
+            <div class="p-2">
+              <div class="flex justify-between items-center mb-2">
+                <span class="text-sm">{{ generatedCode.component_name }}.component.html</span>
+                <button 
+                  mat-icon-button 
+                  matTooltip="Copy HTML code"
+                  (click)="copyCode('html')">
+                  <mat-icon>content_copy</mat-icon>
+                </button>
+              </div>
+              <app-code-viewer 
+                [showSingleEditor]="true"
+                [code]="generatedCode.component_html"
+                [language]="'html'"
+                [fileName]="generatedCode.component_name + '.component.html'">
+              </app-code-viewer>
+            </div>
+          </mat-tab>
+          
+          <mat-tab label="SCSS">
+            <div class="p-2">
+              <div class="flex justify-between items-center mb-2">
+                <span class="text-sm">{{ generatedCode.component_name }}.component.scss</span>
+                <button 
+                  mat-icon-button 
+                  matTooltip="Copy SCSS code"
+                  (click)="copyCode('scss')">
+                  <mat-icon>content_copy</mat-icon>
+                </button>
+              </div>
+              <app-code-viewer 
+                [showSingleEditor]="true"
+                [code]="generatedCode.component_scss"
+                [language]="'scss'"
+                [fileName]="generatedCode.component_name + '.component.scss'">
+              </app-code-viewer>
+            </div>
+          </mat-tab>
+        </mat-tab-group>
+      } @else {
+        <div class="flex-grow flex items-center justify-center bg-gray-100 rounded-lg">
+          <p class="text-gray-500">No code generated yet. Upload a screenshot or enter Figma details to generate code.</p>
+        </div>
+      }
     </div>
   </div>
   

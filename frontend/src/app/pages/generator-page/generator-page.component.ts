@@ -3,6 +3,9 @@ import { CommonModule } from '@angular/common';
 import { MatTabsModule } from '@angular/material/tabs';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
+import { MatIconModule } from '@angular/material/icon';
+import { MatButtonModule } from '@angular/material/button';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { ImageUploaderComponent } from '../../components/image-uploader/image-uploader.component';
 import { FigmaInputComponent } from '../../components/figma-input/figma-input.component';
 import { CodeViewerComponent } from '../../components/code-viewer/code-viewer.component';
@@ -19,6 +22,9 @@ import { FigmaInput } from '../../models/api-request.model';
     MatTabsModule,
     MatSnackBarModule,
     MatProgressBarModule,
+    MatIconModule,
+    MatButtonModule,
+    MatTooltipModule,
     ImageUploaderComponent,
     FigmaInputComponent,
     CodeViewerComponent,
@@ -73,5 +79,36 @@ export class GeneratorPageComponent {
         });
       }
     });
+  }
+  
+  copyCode(type: 'ts' | 'html' | 'scss'): void {
+    if (!this.generatedCode) return;
+    
+    let textToCopy = '';
+    
+    switch (type) {
+      case 'ts':
+        textToCopy = this.generatedCode.component_ts;
+        break;
+      case 'html':
+        textToCopy = this.generatedCode.component_html;
+        break;
+      case 'scss':
+        textToCopy = this.generatedCode.component_scss;
+        break;
+    }
+    
+    navigator.clipboard.writeText(textToCopy)
+      .then(() => {
+        this.snackBar.open('Code copied to clipboard', 'Dismiss', {
+          duration: 3000
+        });
+      })
+      .catch(error => {
+        console.error('Failed to copy code', error);
+        this.snackBar.open('Failed to copy code', 'Dismiss', {
+          duration: 3000
+        });
+      });
   }
 } 

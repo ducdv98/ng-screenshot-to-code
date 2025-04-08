@@ -1,69 +1,84 @@
 <div class="code-viewer w-full h-full flex flex-col">
-  <div class="flex justify-between items-center mb-2">
-    <div class="text-lg font-medium">
-      @if (generatedCode) {
-        Component: <span class="font-bold">{{ generatedCode.component_name }}.component</span>
-      } @else {
-        Generated Code
-      }
+  @if (!showSingleEditor) {
+    <div class="flex justify-between items-center mb-2">
+      <div class="text-lg font-medium">
+        @if (generatedCode) {
+          Component: <span class="font-bold">{{ generatedCode.component_name }}.component</span>
+        } @else {
+          Generated Code
+        }
+      </div>
+      
+      <div class="actions">
+        <button 
+          mat-button 
+          color="primary"
+          matTooltip="Download all files"
+          [disabled]="!generatedCode"
+          (click)="downloadAllFiles()">
+          <mat-icon>download</mat-icon> Download Files
+        </button>
+      </div>
     </div>
-    
-    <div class="actions">
+
+    <mat-tab-group class="flex-grow">
+      <!-- TypeScript -->
+      <mat-tab label="TypeScript">
+        <div class="flex justify-between items-center p-2">
+          <span class="text-sm">{{ generatedCode?.component_name || 'component' }}.component.ts</span>
+          <button 
+            mat-icon-button 
+            matTooltip="Copy TypeScript code"
+            [disabled]="!generatedCode"
+            (click)="copyCode('ts')">
+            <mat-icon>content_copy</mat-icon>
+          </button>
+        </div>
+        <div #tsEditor class="editor-container"></div>
+      </mat-tab>
+      
+      <!-- HTML -->
+      <mat-tab label="HTML">
+        <div class="flex justify-between items-center p-2">
+          <span class="text-sm">{{ generatedCode?.component_name || 'component' }}.component.html</span>
+          <button 
+            mat-icon-button 
+            matTooltip="Copy HTML code"
+            [disabled]="!generatedCode"
+            (click)="copyCode('html')">
+            <mat-icon>content_copy</mat-icon>
+          </button>
+        </div>
+        <div #htmlEditor class="editor-container"></div>
+      </mat-tab>
+      
+      <!-- SCSS -->
+      <mat-tab label="SCSS">
+        <div class="flex justify-between items-center p-2">
+          <span class="text-sm">{{ generatedCode?.component_name || 'component' }}.component.scss</span>
+          <button 
+            mat-icon-button 
+            matTooltip="Copy SCSS code"
+            [disabled]="!generatedCode"
+            (click)="copyCode('scss')">
+            <mat-icon>content_copy</mat-icon>
+          </button>
+        </div>
+        <div #scssEditor class="editor-container"></div>
+      </mat-tab>
+    </mat-tab-group>
+  } @else {
+    <!-- Single Editor Mode -->
+    <div class="flex justify-between items-center p-2">
+      <span class="text-sm">{{ fileName || 'Code' }}</span>
       <button 
-        mat-button 
-        color="primary"
-        matTooltip="Download all files"
-        [disabled]="!generatedCode"
-        (click)="downloadAllFiles()">
-        <mat-icon>download</mat-icon> Download Files
+        mat-icon-button 
+        matTooltip="Copy code"
+        [disabled]="!code"
+        (click)="copyCode('single')">
+        <mat-icon>content_copy</mat-icon>
       </button>
     </div>
-  </div>
-
-  <mat-tab-group class="flex-grow">
-    <!-- TypeScript -->
-    <mat-tab label="TypeScript">
-      <div class="flex justify-between items-center p-2">
-        <span class="text-sm">{{ generatedCode?.component_name || 'component' }}.component.ts</span>
-        <button 
-          mat-icon-button 
-          matTooltip="Copy TypeScript code"
-          [disabled]="!generatedCode"
-          (click)="copyCode('ts')">
-          <mat-icon>content_copy</mat-icon>
-        </button>
-      </div>
-      <div #tsEditor class="editor-container"></div>
-    </mat-tab>
-    
-    <!-- HTML -->
-    <mat-tab label="HTML">
-      <div class="flex justify-between items-center p-2">
-        <span class="text-sm">{{ generatedCode?.component_name || 'component' }}.component.html</span>
-        <button 
-          mat-icon-button 
-          matTooltip="Copy HTML code"
-          [disabled]="!generatedCode"
-          (click)="copyCode('html')">
-          <mat-icon>content_copy</mat-icon>
-        </button>
-      </div>
-      <div #htmlEditor class="editor-container"></div>
-    </mat-tab>
-    
-    <!-- SCSS -->
-    <mat-tab label="SCSS">
-      <div class="flex justify-between items-center p-2">
-        <span class="text-sm">{{ generatedCode?.component_name || 'component' }}.component.scss</span>
-        <button 
-          mat-icon-button 
-          matTooltip="Copy SCSS code"
-          [disabled]="!generatedCode"
-          (click)="copyCode('scss')">
-          <mat-icon>content_copy</mat-icon>
-        </button>
-      </div>
-      <div #scssEditor class="editor-container"></div>
-    </mat-tab>
-  </mat-tab-group>
+    <div #singleEditor class="editor-container"></div>
+  }
 </div> 

@@ -25,14 +25,20 @@ import { MonacoLoaderService } from '../../services/monaco-loader.service';
 })
 export class CodeViewerComponent implements AfterViewInit, OnChanges {
   @Input() generatedCode: GeneratedCode | null = null;
+  @Input() code: string | null = null;
+  @Input() language: string = 'typescript';
+  @Input() fileName: string | null = null;
+  @Input() showSingleEditor: boolean = false;
   
   @ViewChild('tsEditor') tsEditorElement!: ElementRef;
   @ViewChild('htmlEditor') htmlEditorElement!: ElementRef;
   @ViewChild('scssEditor') scssEditorElement!: ElementRef;
+  @ViewChild('singleEditor') singleEditorElement?: ElementRef;
   
   private tsEditor: monaco.editor.IStandaloneCodeEditor | null = null;
   private htmlEditor: monaco.editor.IStandaloneCodeEditor | null = null;
   private scssEditor: monaco.editor.IStandaloneCodeEditor | null = null;
+  private singleEditor: monaco.editor.IStandaloneCodeEditor | null = null;
   
   private defaultTsValue = '// TypeScript code will appear here';
   private defaultHtmlValue = '<!-- HTML code will appear here -->';
@@ -41,7 +47,6 @@ export class CodeViewerComponent implements AfterViewInit, OnChanges {
   constructor(private snackBar: MatSnackBar, private monacoLoader: MonacoLoaderService) {}
   
   ngAfterViewInit(): void {
-    // Initialize Monaco editors after ensuring Monaco is loaded
     this.monacoLoader.loadMonaco().then(() => {
       this.initMonacoEditors();
     }).catch(error => {
@@ -53,15 +58,22 @@ export class CodeViewerComponent implements AfterViewInit, OnChanges {
     if (changes['generatedCode'] && this.generatedCode) {
       this.updateEditors();
     }
+    
+    if (changes['code'] && this.code && this.showSingleEditor) {
+      this.updateSingleEditor();
+    }
   }
   
   private initMonacoEditors(): void {
-    // Ensure we have the DOM elements
+    if (this.showSingleEditor) {
+      this.initSingleEditor();
+      return;
+    }
+    
     if (!this.tsEditorElement || !this.htmlEditorElement || !this.scssEditorElement) {
       return;
     }
     
-    // Create TypeScript editor
     this.tsEditor = monaco.editor.create(this.tsEditorElement.nativeElement, {
       value: this.defaultTsValue,
       language: 'typescript',
@@ -70,7 +82,6 @@ export class CodeViewerComponent implements AfterViewInit, OnChanges {
       minimap: { enabled: false }
     });
     
-    // Create HTML editor
     this.htmlEditor = monaco.editor.create(this.htmlEditorElement.nativeElement, {
       value: this.defaultHtmlValue,
       language: 'html',
@@ -79,7 +90,6 @@ export class CodeViewerComponent implements AfterViewInit, OnChanges {
       minimap: { enabled: false }
     });
     
-    // Create SCSS editor
     this.scssEditor = monaco.editor.create(this.scssEditorElement.nativeElement, {
       value: this.defaultScssValue,
       language: 'scss',
@@ -89,10 +99,31 @@ export class CodeViewerComponent implements AfterViewInit, OnChanges {
     });
   }
   
+  private initSingleEditor(): void {
+    if (!this.singleEditorElement) {
+      return;
+    }
+    
+    this.singleEditor = monaco.editor.create(this.singleEditorElement.nativeElement, {
+      value: this.code || '// Code will appear here',
+      language: this.language,
+      theme: 'vs-dark',
+      automaticLayout: true,
+      minimap: { enabled: false },
+      readOnly: true
+    });
+  }
+  
+  private updateSingleEditor(): void {
+    if (this.singleEditor && this.code) {
+      this.singleEditor.setValue(this.code);
+      monaco.editor.setModelLanguage(this.singleEditor.getModel()!, this.language);
+    }
+  }
+  
   private updateEditors(): void {
     if (!this.generatedCode) return;
 
-    // Only update if editors are initialized
     if (this.tsEditor) {
       this.tsEditor.setValue(this.generatedCode.component_ts);
     }
@@ -106,21 +137,25 @@ export class CodeViewerComponent implements AfterViewInit, OnChanges {
     }
   }
   
-  copyCode(type: 'ts' | 'html' | 'scss'): void {
-    if (!this.generatedCode) return;
+  copyCode(type: 'ts' | 'html' | 'scss' | 'single'): void {
+    if (!this.generatedCode && !this.code) return;
     
     let textToCopy = '';
     
-    switch (type) {
-      case 'ts':
-        textToCopy = this.generatedCode.component_ts;
-        break;
-      case 'html':
-        textToCopy = this.generatedCode.component_html;
-        break;
-      case 'scss':
-        textToCopy = this.generatedCode.component_scss;
-        break;
+    if (type === 'single' && this.code) {
+      textToCopy = this.code;
+    } else if (this.generatedCode) {
+      switch (type) {
+        case 'ts':
+          textToCopy = this.generatedCode.component_ts;
+          break;
+        case 'html':
+          textToCopy = this.generatedCode.component_html;
+          break;
+        case 'scss':
+          textToCopy = this.generatedCode.component_scss;
+          break;
+      }
     }
     
     navigator.clipboard.writeText(textToCopy)
@@ -140,11 +175,8 @@ export class CodeViewerComponent implements AfterViewInit, OnChanges {
   downloadAllFiles(): void {
     if (!this.generatedCode) return;
     
-    // Prepare component name or use a default
     const componentName = this.generatedCode.component_name || 'angular-component';
     
-    // Create ZIP file using JSZip (would need to add this dependency)
-    // For now, just trigger individual downloads
     this.downloadFile(`${componentName}.component.ts`, this.generatedCode.component_ts);
     this.downloadFile(`${componentName}.component.html`, this.generatedCode.component_html);
     this.downloadFile(`${componentName}.component.scss`, this.generatedCode.component_scss);
