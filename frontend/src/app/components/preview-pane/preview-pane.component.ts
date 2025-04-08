@@ -71,6 +71,25 @@ export class PreviewPaneComponent implements OnChanges {
             doc.open();
             doc.write(previewHtml);
             doc.close();
+            
+            // Give a small delay for resources to load
+            setTimeout(() => {
+              try {
+                // Force Material Icons to render correctly if they're present
+                const icons = doc.querySelectorAll('mat-icon');
+                if (icons.length > 0) {
+                  Array.from(icons).forEach(icon => {
+                    const iconName = icon.textContent?.trim() || '';
+                    if (iconName) {
+                      icon.innerHTML = iconName;
+                      icon.classList.add('material-icons');
+                    }
+                  });
+                }
+              } catch (iconError) {
+                console.warn('Icon processing error:', iconError);
+              }
+            }, 100);
           }
         } catch (innerError) {
           console.warn('Fallback iframe update failed:', innerError);

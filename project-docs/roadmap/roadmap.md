@@ -28,7 +28,7 @@ This document outlines the planned development phases following the successful c
 *   **Basic Style Extraction:**
     *   Implement client-side color extraction (e.g., using `color-thief`) to inform the AI prompt.
 
-*Reference: See `PHASE-2-ENHANCEMENTS.md` for details.*
+*Reference: See `phase-2-enhancements.md` for details.*
 
 ### Focus Area 2: Implement Figma Integration (Phase 3)
 
@@ -39,7 +39,7 @@ This document outlines the planned development phases following the successful c
 *   **Develop Figma-to-Code Mapping Logic:** Translate Figma nodes (Frames, Text, Rectangles, Auto Layout) and styles into corresponding HTML elements, Angular Material components, and TailwindCSS classes. This is a complex core task.
 *   **Frontend UI:** Add UI elements for Figma URL input and authentication.
 
-*Reference: See `PHASE-3-FIGMA-INTEGRATION.md` for details.*
+*Reference: See `phase-3-figma-integration.md` for details.*
 
 ### Focus Area 3: Polish, Testing & Advanced Features (Phase 4)
 
@@ -52,6 +52,4 @@ This document outlines the planned development phases following the successful c
 *   **Optimization:** Address performance bottlenecks and manage API costs.
 *   **(Advanced):** Explore component splitting suggestions.
 
-*These items can be integrated throughout development or tackled as a distinct phase.*
-
----
+*These items can be integrated throughout development or tackled as a distinct phase.* 

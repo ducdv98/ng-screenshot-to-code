@@ -61,8 +61,4 @@ This feature is a significant enhancement. It could be:
 *   **Part of Phase 4 (Polish & Advanced Features):** Treated as an advanced feature after core image and Figma functionality are stable.
 *   **Integrated Earlier (e.g., alongside Phase 2/3):** If user cost management or model flexibility is deemed a high priority early on.
 
-Given the complexity, **Phase 4** seems like a reasonable placement unless driven by strong user demand earlier.
-
----
-
-Add this `MULTI-MODEL-SUPPORT.md` to your project documentation. You should also update `ROADMAP.md` to include "Multi-Model Support & User API Keys" as a planned feature, likely under Phase 4 or as a distinct feature track.
+Given the complexity, **Phase 4** seems like a reasonable placement unless driven by strong user demand earlier. 

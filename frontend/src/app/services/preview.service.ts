@@ -69,6 +69,38 @@ export class PreviewService {
           .mat-elevation-z2 { box-shadow: 0 3px 1px -2px rgba(0,0,0,.2), 0 2px 2px 0 rgba(0,0,0,.14), 0 1px 5px 0 rgba(0,0,0,.12); }
           .mat-elevation-z4 { box-shadow: 0 2px 4px -1px rgba(0,0,0,.2), 0 4px 5px 0 rgba(0,0,0,.14), 0 1px 10px 0 rgba(0,0,0,.12); }
           
+          /* Material Icons styling */
+          .material-icons {
+            font-family: 'Material Icons';
+            font-weight: normal;
+            font-style: normal;
+            font-size: 24px;
+            line-height: 1;
+            letter-spacing: normal;
+            text-transform: none;
+            display: inline-block;
+            white-space: nowrap;
+            word-wrap: normal;
+            direction: ltr;
+            -webkit-font-feature-settings: 'liga';
+            -webkit-font-smoothing: antialiased;
+          }
+          
+          /* Material Symbols styling */
+          .material-symbols-outlined {
+            font-family: 'Material Symbols Outlined';
+            font-weight: normal;
+            font-style: normal;
+            font-size: 24px;
+            line-height: 1;
+            letter-spacing: normal;
+            text-transform: none;
+            display: inline-block;
+            white-space: nowrap;
+            word-wrap: normal;
+            direction: ltr;
+          }
+          
           /* Component specific styles */
           ${generatedCode.component_scss}
         </style>
@@ -99,6 +131,17 @@ export class PreviewService {
                 button.appendChild(ripple);
                 setTimeout(() => button.removeChild(ripple), 600);
               });
+            });
+            
+            // Map Angular Material icon usage to standard Material Icons
+            document.querySelectorAll('mat-icon').forEach(icon => {
+              // Get the text content which should be the icon name
+              const iconName = icon.textContent ? icon.textContent.trim() : '';
+              if (iconName) {
+                // Clear the element and add the icon as a class
+                icon.innerHTML = iconName;
+                icon.classList.add('material-icons');
+              }
             });
           });
         </script>

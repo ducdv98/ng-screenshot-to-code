@@ -1,11 +1,10 @@
-import { Component, ElementRef, EventEmitter, HostListener, Output, ViewChild } from '@angular/core';
+import { Component, ElementRef, EventEmitter, HostListener, Output, ViewChild, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatCardModule } from '@angular/material/card';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
-// @ts-ignore
-import ColorThief from 'color-thief-browser';
+import { ColorExtractionService } from '../../services/color-extraction.service';
 
 interface ImageUploadData {
   file: File;
@@ -40,17 +39,8 @@ export class ImageUploaderComponent {
   dominantColor: string | null = null;
   colorPalette: string[] = [];
   
-  private colorThief: any;
   private currentFile: File | null = null;
-  
-  constructor() {
-    try {
-      this.colorThief = new ColorThief();
-    } catch (error) {
-      console.error('Failed to initialize ColorThief:', error);
-      this.colorThief = null;
-    }
-  }
+  private colorService = inject(ColorExtractionService);
   
   // Add keyboard support for the drop zone
   @HostListener('keydown.space', ['$event'])
@@ -61,14 +51,6 @@ export class ImageUploaderComponent {
       event.preventDefault();
       this.triggerFileInput();
     }
-  }
-  
-  // Convert RGB array to hex color string
-  private rgbToHex(rgb: number[]): string {
-    return '#' + rgb.map(x => {
-      const hex = x.toString(16);
-      return hex.length === 1 ? '0' + hex : hex;
-    }).join('');
   }
   
   /**
@@ -164,18 +146,12 @@ export class ImageUploaderComponent {
     img.crossOrigin = 'Anonymous';
     img.onload = () => {
       try {
-        // Check if image is fully loaded and has proper dimensions
-        if (img.complete && img.naturalWidth > 0 && img.naturalHeight > 0 && this.colorThief) {
-          // Extract dominant color
-          const dominantRgb = this.colorThief.getColor(img);
-          this.dominantColor = this.rgbToHex(dominantRgb);
-          
-          // Extract color palette (5 colors)
-          const paletteRgb = this.colorThief.getPalette(img, 5);
-          this.colorPalette = paletteRgb.map((rgb: number[]) => this.rgbToHex(rgb));
-        } else {
-          // Skip color extraction if image isn't properly loaded or colorThief isn't available
-          console.warn('Image not fully loaded or ColorThief not available, skipping color extraction');
+        // Extract colors using our service
+        const colorData = this.colorService.extractColors(img);
+        
+        if (colorData) {
+          this.dominantColor = colorData.dominant || null;
+          this.colorPalette = colorData.palette || [];
         }
         
         // Simulate progress

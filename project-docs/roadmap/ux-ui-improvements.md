@@ -2,7 +2,7 @@
 
 *Goal: Enhance the user experience and visual appeal of the Screenshot/Figma to Angular Code Generator, moving beyond the basic MVP interface to create a more intuitive, informative, and professional-looking tool.*
 
-These improvements should be considered alongside the functional development outlined in `PHASE-2-ENHANCEMENTS.md` and `PHASE-3-FIGMA-INTEGRATION.md`.
+These improvements should be considered alongside the functional development outlined in `phase-2-enhancements.md` and `phase-3-figma-integration.md`.
 
 ## Key Areas for Improvement
 
@@ -84,4 +84,4 @@ These improvements should be considered alongside the functional development out
     4.  **Code Display Enhancements:** Implement tabs and copy buttons when integrating Monaco Editor (Phase 2).
     5.  **Visual Polish:** Apply consistent theming and spacing throughout.
 
-By focusing on these areas, the application will become significantly more usable, trustworthy, and pleasant for developers to interact with.
+By focusing on these areas, the application will become significantly more usable, trustworthy, and pleasant for developers to interact with. 

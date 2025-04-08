@@ -56,6 +56,4 @@ This phase builds directly on the MVP (Phase 1) foundation.
     *   **Extract Colors:** In the `ImageUploaderComponent` or `GeneratorPageComponent`, after an image is selected/loaded:
         *   Use the library to get the dominant color and/or a small palette of colors from the image.
     *   **Include in API Request:** Modify the data sent to the backend `/api/generate-from-image` endpoint to include these extracted hex color codes.
-    *   **Update Backend Prompt:** Modify the prompt generation logic in `backend/app/services/code_generator.py` to incorporate these suggested colors (e.g., "Use these colors where appropriate: primary=`#XXXXXX`, accent=`#YYYYYY`..."). *Note: Font detection is significantly harder and likely out of scope for this phase.*
-
----
+    *   **Update Backend Prompt:** Modify the prompt generation logic in `backend/app/services/code_generator.py` to incorporate these suggested colors (e.g., "Use these colors where appropriate: primary=`#XXXXXX`, accent=`#YYYYYY`..."). *Note: Font detection is significantly harder and likely out of scope for this phase.* 

@@ -61,6 +61,4 @@ This phase introduces a major new capability alongside the existing image-to-cod
 *   **Steps:**
     *   **Add Figma Input:** Integrate the `FigmaInputComponent` into the `GeneratorPageComponent`.
     *   **Update `ApiService`:** Add a new method `generateCodeFromFigma(fileUrl: string, token?: string)` (token might be handled differently if using OAuth) to call the `POST /api/v1/generate-from-figma` backend endpoint.
-    *   **Connect UI:** In `GeneratorPageComponent`, call the new `ApiService` method when the user submits the Figma URL (and token, if applicable). Handle the response containing the generated code and display it using the `CodeViewerComponent` and `PreviewPaneComponent`.
-
----
+    *   **Connect UI:** In `GeneratorPageComponent`, call the new `ApiService` method when the user submits the Figma URL (and token, if applicable). Handle the response containing the generated code and display it using the `CodeViewerComponent` and `PreviewPaneComponent`. 
