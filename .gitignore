@@ -27,15 +27,45 @@ var/
 venv/
 env/
 
+# Node.js
+node_modules/
+npm-debug.log
+yarn-debug.log
+yarn-error.log
+.pnpm-debug.log
+.npm
+.yarn-integrity
+
+# Angular/Frontend
+.angular/
+dist/
+tmp/
+out-tsc/
+bazel-out/
+.sass-cache/
+connect.lock
+coverage/
+libpeerconnection.log
+testem.log
+
 # IDE
 .idea/
 .vscode/
 *.swp
 *.swo
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+*.sublime-workspace
 
 # OS
 .DS_Store
 Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+.directory
 
 # Environment variables
 .env
@@ -43,3 +73,8 @@ Thumbs.db
 .env.development.local
 .env.test.local
 .env.production.local
+
+# Test outputs
+test-results/
+playwright-report/
+/playwright/.cache/

@@ -1,4 +1,4 @@
-from typing import Dict, Any
+from typing import Dict, Any, List
 import openai
 import anthropic
 import google.generativeai as genai
@@ -62,11 +62,17 @@ class CodeGenerator:
         Returns:
             GeneratedCode object with component_ts, component_html, component_scss, and component_name
         """
-        # This would involve complex logic to map Figma nodes to Angular components
-        # For now, we'll send the Figma data to the AI to have it generate the code
+        # Extract component definitions from figma data if they exist
+        component_definitions = {}
+        if 'file_data' in figma_data and 'components' in figma_data['file_data']:
+            component_definitions = figma_data['file_data'].get('components', {})
         
-        # Convert Figma data to a text description for the AI
-        figma_description = self._extract_figma_description(figma_data)
+        # Parse figma nodes to extract component structure
+        warnings = []
+        
+        # This would involve complex logic to map Figma nodes to Angular components
+        # For now, we'll extract a description that includes component recognition
+        figma_description = self._extract_figma_description(figma_data, component_definitions, warnings)
         
         # Choose the appropriate service
         if settings.DEFAULT_VLM_PROVIDER == "openai" and settings.OPENAI_API_KEY:
@@ -78,18 +84,90 @@ class CodeGenerator:
         else:
             raise ValueError(f"Unsupported or unconfigured VLM provider: {settings.DEFAULT_VLM_PROVIDER}")
         
+        # If we have warnings from the node parsing, inject them into the HTML as comments
+        component_html = result.get("component_html", "")
+        if warnings:
+            warning_comments = "\n".join([f"<!-- Warning: {warning} -->" for warning in warnings])
+            component_html = f"{warning_comments}\n{component_html}"
+        
         return GeneratedCode(
             component_ts=result.get("component_ts", ""),
-            component_html=result.get("component_html", ""),
+            component_html=component_html,
             component_scss=result.get("component_scss", ""),
             component_name=result.get("component_name", "figma-component")
         )
     
-    def _extract_figma_description(self, figma_data: Dict[str, Any]) -> str:
-        """Extract a textual description from Figma data for use in prompts."""
-        # Simplified for now - in a real implementation, this would parse the Figma nodes
-        # and create a structured text description
-        return f"Figma design with {len(figma_data.get('nodes', []))} nodes."
+    def _extract_figma_description(self, figma_data: Dict[str, Any], component_definitions: Dict[str, Any] = None, warnings: List[str] = None) -> str:
+        """
+        Extract a textual description from Figma data for use in prompts.
+        
+        Args:
+            figma_data: The Figma API response data
+            component_definitions: Dictionary of component definitions from Figma
+            warnings: List to collect warnings during processing
+            
+        Returns:
+            A detailed description of the Figma design
+        """
+        if warnings is None:
+            warnings = []
+        
+        # Basic structure info
+        basic_info = f"Figma design with {len(figma_data.get('file_data', {}).get('document', {}).get('children', []))} pages."
+        
+        # Extract component instances information if available
+        component_info = []
+        
+        # If we have node data (when a specific node was requested)
+        if 'node_data' in figma_data and figma_data['node_data']:
+            node_data = figma_data['node_data']
+            component_info.extend(self._extract_component_instances(node_data, component_definitions, warnings))
+        # Otherwise, try to process the entire document
+        elif 'file_data' in figma_data and 'document' in figma_data['file_data']:
+            document = figma_data['file_data']['document']
+            for page in document.get('children', []):
+                for frame in page.get('children', []):
+                    component_info.extend(self._extract_component_instances(frame, component_definitions, warnings))
+        
+        # Create a detailed description including component information
+        component_description = ""
+        if component_info:
+            component_description = "\n\nComponent Instances Found:\n" + "\n".join(component_info)
+        
+        return f"{basic_info}{component_description}"
+    
+    def _extract_component_instances(self, node: Dict[str, Any], component_definitions: Dict[str, Any], warnings: List[str]) -> List[str]:
+        """
+        Recursively extract component instances from a Figma node tree.
+        
+        Args:
+            node: The current Figma node to process
+            component_definitions: Dictionary of component definitions from Figma
+            warnings: List to collect warnings during processing
+            
+        Returns:
+            List of component instance descriptions
+        """
+        component_info = []
+        
+        # Check if this node is a component instance
+        if node.get('type') == 'INSTANCE':
+            component_id = node.get('componentId')
+            if component_id and component_definitions and component_id in component_definitions:
+                # Get information about the component this instance is based on
+                component_def = component_definitions[component_id]
+                component_name = component_def.get('name', 'Unknown Component')
+                component_info.append(f"- {node.get('name', 'Unnamed')} is an instance of component '{component_name}'")
+            else:
+                # Instance without defined component or component not found
+                warnings.append(f"Component instance '{node.get('name', 'Unnamed')}' references undefined component")
+                component_info.append(f"- {node.get('name', 'Unnamed')} is an instance of an unknown component")
+        
+        # Recursively process children
+        for child in node.get('children', []):
+            component_info.extend(self._extract_component_instances(child, component_definitions, warnings))
+        
+        return component_info
     
     def _create_prompt(self, description: str, color_hints: list = None) -> str:
         """
@@ -111,295 +189,62 @@ Color Palette:
 Use these colors extracted from the image as a starting point for your design: [{color_list}]
 Apply these colors to appropriate elements to maintain visual consistency with the original design.
 """
-
-        # Few-shot examples to help guide the model
-        examples = """
-EXAMPLE 1:
-UI DESCRIPTION:
-A login form with email and password fields, a "Remember me" checkbox, a "Forgot password?" link, and a blue submit button that says "Log In".
-
-CODE OUTPUT:
-```typescript
-import { Component } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { MatInputModule } from '@angular/material/input';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatButtonModule } from '@angular/material/button';
-import { MatCheckboxModule } from '@angular/material/checkbox';
-
-@Component({
-  selector: 'app-login-form',
-  standalone: true,
-  imports: [
-    CommonModule,
-    ReactiveFormsModule,
-    MatInputModule,
-    MatFormFieldModule,
-    MatButtonModule,
-    MatCheckboxModule
-  ],
-  templateUrl: './login-form.component.html',
-  styleUrls: ['./login-form.component.scss']
-})
-export class LoginFormComponent {
-  loginForm: FormGroup;
-
-  constructor(private fb: FormBuilder) {
-    this.loginForm = this.fb.group({
-      email: ['', [Validators.required, Validators.email]],
-      password: ['', Validators.required],
-      rememberMe: [false]
-    });
-  }
-
-  onSubmit(): void {
-    if (this.loginForm.valid) {
-      console.log('Form submitted', this.loginForm.value);
-      // Handle login logic
-    }
-  }
-}
-```
-
-```html
-<div class="flex justify-center items-center min-h-screen bg-gray-50">
-  <div class="p-8 bg-white rounded-lg shadow-md w-full max-w-md">
-    <h1 class="text-2xl font-bold text-center mb-6 text-gray-800">Sign In</h1>
-    
-    <form [formGroup]="loginForm" (ngSubmit)="onSubmit()" class="space-y-4">
-      <mat-form-field appearance="outline" class="w-full">
-        <mat-label>Email</mat-label>
-        <input matInput formControlName="email" type="email" placeholder="your@email.com">
-        <mat-error *ngIf="loginForm.controls['email'].hasError('required')">
-          Email is required
-        </mat-error>
-        <mat-error *ngIf="loginForm.controls['email'].hasError('email')">
-          Please enter a valid email
-        </mat-error>
-      </mat-form-field>
-      
-      <mat-form-field appearance="outline" class="w-full">
-        <mat-label>Password</mat-label>
-        <input matInput formControlName="password" type="password">
-        <mat-error *ngIf="loginForm.controls['password'].hasError('required')">
-          Password is required
-        </mat-error>
-      </mat-form-field>
-      
-      <div class="flex justify-between items-center">
-        <mat-checkbox formControlName="rememberMe" color="primary">
-          Remember me
-        </mat-checkbox>
-        <a href="#" class="text-blue-600 text-sm hover:underline">Forgot password?</a>
-      </div>
-      
-      <button mat-raised-button color="primary" type="submit" class="w-full py-2">
-        Log In
-      </button>
-    </form>
-  </div>
-</div>
-```
-
-```scss
-:host {
-  display: block;
-}
-
-/* Custom focus styles for better accessibility */
-.mat-mdc-form-field-focus-overlay {
-  background-color: rgba(0, 0, 255, 0.04);
-}
-
-/* Custom button styling to match design */
-.mat-primary {
-  background-color: #1a73e8 !important;
-}
-```
-
-EXAMPLE 2:
-UI DESCRIPTION:
-A pricing table with three tiers (Basic, Pro, Enterprise). Each tier shows the price, a list of 4-5 features, and a "Choose plan" button. The Pro plan is highlighted as recommended.
-
-CODE OUTPUT:
-```typescript
-import { Component } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { MatButtonModule } from '@angular/material/button';
-import { MatCardModule } from '@angular/material/card';
-import { MatIconModule } from '@angular/material/icon';
-import { MatBadgeModule } from '@angular/material/badge';
-
-interface PricingPlan {
-  name: string;
-  price: string;
-  features: string[];
-  isRecommended: boolean;
-}
-
-@Component({
-  selector: 'app-pricing-table',
-  standalone: true,
-  imports: [
-    CommonModule,
-    MatButtonModule,
-    MatCardModule,
-    MatIconModule,
-    MatBadgeModule
-  ],
-  templateUrl: './pricing-table.component.html',
-  styleUrls: ['./pricing-table.component.scss']
-})
-export class PricingTableComponent {
-  plans: PricingPlan[] = [
-    {
-      name: 'Basic',
-      price: '$9.99',
-      features: [
-        'Up to 5 users',
-        '10GB storage',
-        'Basic support',
-        'Email notifications'
-      ],
-      isRecommended: false
-    },
-    {
-      name: 'Pro',
-      price: '$19.99',
-      features: [
-        'Up to 20 users',
-        '50GB storage',
-        'Priority support',
-        'Email and SMS notifications',
-        'Advanced analytics'
-      ],
-      isRecommended: true
-    },
-    {
-      name: 'Enterprise',
-      price: '$49.99',
-      features: [
-        'Unlimited users',
-        '500GB storage',
-        '24/7 dedicated support',
-        'All notification channels',
-        'Advanced analytics',
-        'Custom integrations'
-      ],
-      isRecommended: false
-    }
-  ];
-}
-```
-
-```html
-<div class="container mx-auto py-12 px-4">
-  <h2 class="text-3xl font-bold text-center mb-12">Choose your plan</h2>
-  
-  <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-    <ng-container *ngFor="let plan of plans">
-      <mat-card [ngClass]="{'border-2 border-primary': plan.isRecommended}" class="h-full">
-        <div *ngIf="plan.isRecommended" class="absolute top-0 right-0 transform translate-x-2 -translate-y-2">
-          <span class="bg-primary text-white text-xs px-2 py-1 rounded-full">Recommended</span>
-        </div>
         
-        <mat-card-header>
-          <mat-card-title class="text-xl font-bold mb-2">{{plan.name}}</mat-card-title>
-          <mat-card-subtitle>
-            <span class="text-3xl font-bold">{{plan.price}}</span>
-            <span class="text-gray-600">/month</span>
-          </mat-card-subtitle>
-        </mat-card-header>
-        
-        <mat-card-content class="py-4">
-          <ul class="space-y-3">
-            <li *ngFor="let feature of plan.features" class="flex items-start">
-              <mat-icon class="text-green-500 mr-2 text-sm">check_circle</mat-icon>
-              <span>{{feature}}</span>
-            </li>
-          </ul>
-        </mat-card-content>
-        
-        <mat-card-actions align="end">
-          <button mat-raised-button [color]="plan.isRecommended ? 'primary' : 'basic'" class="w-full">
-            Choose plan
-          </button>
-        </mat-card-actions>
-      </mat-card>
-    </ng-container>
-  </div>
-</div>
-```
+        # Check if description contains component instances
+        component_section = ""
+        if "Component Instances Found:" in description:
+            component_section = """
+Component Instances:
+The Figma design contains component instances which should be reflected in the HTML.
+For each component instance mentioned, add an HTML comment above the corresponding element with the format:
+<!-- Figma Component: ComponentName -->
 
-```scss
-.mat-mdc-card {
-  transition: transform 0.3s ease;
-  
-  &:hover {
-    transform: translateY(-5px);
-  }
-  
-  &.border-primary {
-    border-color: #3f51b5;
-  }
-}
-
-.bg-primary {
-  background-color: #3f51b5;
-}
-
-.text-primary {
-  color: #3f51b5;
-}
-
-.border-primary {
-  border-color: #3f51b5;
-}
-```
+Additionally, add a data attribute to the element: data-figma-component="ComponentName"
+For example: <div data-figma-component="ButtonPrimary" class="...">...</div>
 """
         
-        # Main prompt with detailed requirements
-        return f"""
-Based on the following UI description, generate an Angular component with Angular Material 3 components and TailwindCSS.
+        prompt = f"""Your task is to generate a precise Angular component based on the following design description:
 
-UI DESCRIPTION:
 {description}
 
 {color_section}
+{component_section}
 
 Requirements:
-1. Generate TypeScript code for an Angular standalone component with the @Component decorator and all necessary imports.
-2. Generate HTML template using Angular Material 3 components where appropriate (like mat-button, mat-card, mat-table, etc.) and TailwindCSS for layout and styling.
-3. Generate SCSS with any custom styles needed beyond TailwindCSS.
-4. Suggest an appropriate component name in kebab-case.
-5. Follow Angular best practices including:
-   - Use proper TypeScript types for all variables and methods
-   - Implement reactive patterns with signals where appropriate
-   - Create responsive layouts with Tailwind's responsive classes
-   - Include appropriate ARIA attributes for accessibility
-   - Use Angular's built-in directives (*ngIf, *ngFor, etc.) effectively
+1. Utilize Angular Material components and Tailwind CSS classes for styling.
+2. Generate a standalone Angular component (use the latest Angular syntax).
+3. The response should include three separate code blocks:
+   - component_ts: Component TypeScript code with imports and decorator.
+   - component_html: Component template (HTML).
+   - component_scss: Component styles (SCSS).
+   - component_name: A suggestive name for the component.
 
-Material Design Guidelines:
-- Use Material 3 components like mat-button, mat-card, mat-form-field, etc.
-- Follow Material Design spacing and sizing guidelines
-- Prefer Material theme colors but utilize custom colors from the color palette when needed
-- Use elevation appropriately for depth and hierarchy
+Component Guidelines:
+- Create a reusable component with appropriate inputs for customization.
+- Use semantic HTML and ensure accessibility.
+- Apply Tailwind CSS for layout, spacing, colors, and responsive design.
+- Use Angular Material components for complex UI elements (buttons, inputs, cards, etc.).
+- Use Flex or Grid layout appropriately for element positioning.
+- Include responsive design considerations.
 
-Tailwind Usage:
-- Use Tailwind for layout structure (flex, grid, positioning)
-- Apply Tailwind for spacing, sizing, and typography
-- Use Tailwind for responsive design breakpoints
-- Only create custom SCSS when Tailwind doesn't provide the needed styles
+Important Implementation Details:
+- For Material components, use the appropriate directives and import statements.
+- Use Tailwind class naming conventions consistently.
+- Any icons should use Material Icons.
+- Ensure text content matches the design as closely as possible.
 
-Format your response as a JSON object with the following properties:
-- component_ts: The TypeScript code for the component
-- component_html: The HTML template
-- component_scss: The SCSS styles
-- component_name: A suggested name for the component (kebab-case)
-
-{examples}
+Your output must be in the following valid JSON format:
+```json
+{{
+  "component_ts": "// TypeScript code here...",
+  "component_html": "<!-- HTML code here... -->",
+  "component_scss": "/* SCSS styles here... */",
+  "component_name": "suggested-component-name"
+}}
+```
 """
+        
+        return prompt
     
     async def _generate_with_openai(self, description: str) -> Dict[str, Any]:
         """Generate code using OpenAI."""

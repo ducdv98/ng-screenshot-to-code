@@ -1,1 +1,15 @@
-{"name":"ng-screenshot-to-code","version":"1.0.0","scripts":{"start":"cd frontend && npm run start"},"dependencies":{"color-thief-browser":"^2.0.2"}}
+{
+  "name": "ng-screenshot-to-code",
+  "version": "1.0.0",
+  "scripts": {
+    "start": "cd frontend && npm run start",
+    "start:backend": "cd backend && uvicorn app.main:app --reload",
+    "dev": "concurrently \"npm run start\" \"npm run start:backend\""
+  },
+  "dependencies": {
+    "color-thief-browser": "^2.0.2"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
