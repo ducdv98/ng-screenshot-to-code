@@ -1,33 +1,129 @@
+/* Angular Material v19 custom theme */
 @use '@angular/material' as mat;
 
 // Include the common styles for Angular Material
 @include mat.core();
 
-// Our custom CSS variables for use in the application
+// Use classic Material Design palettes for a reliable setup
+$indigo-palette: (
+  50: #e8eaf6,
+  100: #c5cae9,
+  200: #9fa8da,
+  300: #7986cb,
+  400: #5c6bc0,
+  500: #3f51b5,
+  600: #3949ab,
+  700: #303f9f,
+  800: #283593,
+  900: #1a237e,
+  contrast: (
+    50: rgba(0, 0, 0, 0.87),
+    100: rgba(0, 0, 0, 0.87),
+    200: rgba(0, 0, 0, 0.87),
+    300: rgba(0, 0, 0, 0.87),
+    400: white,
+    500: white,
+    600: white,
+    700: white,
+    800: white,
+    900: white,
+  )
+);
+
+$pink-palette: (
+  50: #fce4ec,
+  100: #f8bbd0,
+  200: #f48fb1,
+  300: #f06292,
+  400: #ec407a,
+  500: #e91e63,
+  600: #d81b60,
+  700: #c2185b,
+  800: #ad1457,
+  900: #880e4f,
+  A100: #ff80ab,
+  A200: #ff4081,
+  A400: #f50057,
+  A700: #c51162,
+  contrast: (
+    50: rgba(0, 0, 0, 0.87),
+    100: rgba(0, 0, 0, 0.87),
+    200: rgba(0, 0, 0, 0.87),
+    300: rgba(0, 0, 0, 0.87),
+    400: rgba(0, 0, 0, 0.87),
+    500: white,
+    600: white,
+    700: white,
+    800: white,
+    900: white,
+    A100: rgba(0, 0, 0, 0.87),
+    A200: white,
+    A400: white,
+    A700: white,
+  )
+);
+
+$red-palette: (
+  50: #ffebee,
+  100: #ffcdd2,
+  200: #ef9a9a,
+  300: #e57373,
+  400: #ef5350,
+  500: #f44336,
+  600: #e53935,
+  700: #d32f2f,
+  800: #c62828,
+  900: #b71c1c,
+  contrast: (
+    50: rgba(0, 0, 0, 0.87),
+    100: rgba(0, 0, 0, 0.87),
+    200: rgba(0, 0, 0, 0.87),
+    300: rgba(0, 0, 0, 0.87),
+    400: rgba(0, 0, 0, 0.87),
+    500: white,
+    600: white,
+    700: white,
+    800: white,
+    900: white,
+  )
+);
+
+// Create CSS custom properties
 :root {
-  // Primary color variables
-  --color-primary-50: #e3f2fd;
-  --color-primary-100: #bbdefb;
-  --color-primary-200: #90caf9;
-  --color-primary-300: #64b5f6;
-  --color-primary-400: #42a5f5;
-  --color-primary-500: #2196f3;
-  --color-primary-600: #1e88e5;
-  --color-primary-700: #1976d2;
-  --color-primary-800: #1565c0;
-  --color-primary-900: #0d47a1;
-  
-  // Accent color variables
-  --color-accent-500: #ffc107;
-  
-  // Warn color variables
-  --color-warn-500: #f44336;
-  
-  // Additional variables for component styling
-  --card-border-radius: 8px;
-  --button-border-radius: 4px;
-  --transition-speed: 0.2s;
+  --primary-color: #{map-get($indigo-palette, 500)};
+  --accent-color: #{map-get($pink-palette, A200)};
+  --warn-color: #{map-get($red-palette, 500)};
 }
 
-// Include the default theme styles
-@include mat.all-component-themes(mat.$light-theme-background-palette); 
+// Material component specific styles
+.mat-mdc-button.mat-primary {
+  --mdc-text-button-label-text-color: var(--primary-color);
+}
+
+.mat-mdc-raised-button.mat-primary {
+  --mdc-filled-button-container-color: var(--primary-color);
+  --mdc-filled-button-label-text-color: white;
+}
+
+.mat-mdc-form-field.mat-focused .mat-mdc-form-field-ripple {
+  background-color: var(--primary-color);
+}
+
+.mat-mdc-form-field.mat-focused .mat-mdc-form-field-label {
+  color: var(--primary-color);
+}
+
+.mat-mdc-checkbox.mat-accent .mdc-checkbox__native-control:checked ~ .mdc-checkbox__background {
+  background-color: var(--accent-color);
+  border-color: var(--accent-color);
+}
+
+.mat-mdc-tab-group.mat-primary .mat-mdc-tab-header {
+  --mdc-tab-indicator-active-indicator-color: var(--primary-color);
+}
+
+.mat-mdc-tab-group.mat-primary .mat-mdc-tab-header-item.mat-mdc-tab--active {
+  color: var(--primary-color);
+}
+
+// Additional component styles can be added as needed 
