@@ -1,138 +1,176 @@
-# Task Breakdown: Advanced AI Code Generation & Live Preview Enhancements
+# Task Breakdown: Full Angular Project Generation
 
-This document outlines the specific tasks required to implement the enhanced AI code generation pipeline and the StackBlitz-based live preview feature, targeting Angular v19+ and Material v17+.
-
----
-
-### Task ID: FE-1
-**Title:** Implement StackBlitz SDK Integration for Live Preview
-**Status:** Completed ✅
-
-**Description:** Replace the current static HTML preview iframe with a fully interactive live preview environment powered by the StackBlitz SDK. This involves embedding a dynamic StackBlitz instance that can bootstrap and run the generated Angular component(s).
-
-**Technical Solution/Approach:**
-1.  Install and configure the `@stackblitz/sdk` package in the frontend application.
-2.  Refactor the existing `PreviewPaneComponent` (or similar component). Remove the `iframe[srcdoc]` element and replace it with a `div` container designated for the StackBlitz embed.
-3.  Implement logic (likely within the preview component or a dedicated service) to receive the generated component data (structured JSON) from the backend.
-4.  Develop a function (`prepareStackBlitzProject`) responsible for dynamically constructing the `Project` object required by the StackBlitz SDK. This function must:
-    * Assemble a virtual file system including:
-        * Essential static boilerplate files (See BE-2: Boilerplate Configuration).
-        * Generated component files (`.ts`, `.html`, `.scss`) correctly placed within the `src/app/` directory structure based on the JSON response.
-        * Ensure correct relative import paths are set if multiple components reference each other.
-    * Configure project settings like title and template (`angular-cli`).
-5.  Utilize the `sdk.embedProject()` method, passing the target container element ID, the constructed `Project` object, and appropriate display options (e.g., default view set to 'preview', specific generated component file to open initially).
-6.  Remove legacy code related to `iframe`, `srcdoc` generation, and associated sanitization.
-
-**Location/Impacted Areas:**
-* `frontend/src/app/components/preview-pane/`
-* `frontend/src/app/services/` (Potentially a new `PreviewService` or updates to `api.service.ts`)
-* `frontend/package.json`
-
-**Dependencies:** BE-2, BE-3
+This document details the tasks required to pivot the project towards generating a complete, downloadable Angular project, replacing the previous goal of code snippet generation and live preview. This targets Angular v19+ and Material v17+.
 
 ---
 
-### Task ID: BE-1
-**Title:** Refine Backend Prompt Generation Logic
-**Status:** Completed ✅
+### Task ID: FPG-BE-1
+**Title:** Overhaul Backend Prompt Engineering Strategy
+**Status:** COMPLETED ✅
 
-**Description:** Enhance the prompt generation service to incorporate advanced strategies aimed at improving AI code generation accuracy, structure (including conditional component splitting), and compatibility with Angular v19+/Material v17+.
+**Description:** Redesign the prompt sent to the VLM to support the generation of core component code suitable for integration into a full project structure, including conditional component splitting logic and adherence to strict configuration assumptions.
 
 **Technical Solution/Approach:**
-1.  Modify the service responsible for crafting the prompt sent to the VLM (e.g., Gemini Flash).
-2.  Incorporate all elements outlined in the "Advanced Prompt Engineering Strategy" section of the technical guide:
-    * **Role Prompting:** Assign an expert Angular developer role.
-    * **Explicit Goal:** Clearly state the objective, including conditional component splitting logic based on UI analysis.
-    * **Technology Stack & Constraints:** Reinforce Angular v19+, Material v17+ (MDC), Tailwind exclusivity, standalone APIs, and styling interaction notes.
-    * **Configuration Assumptions:** Explicitly state the assumed presence of standard Tailwind and Material configurations provided by the boilerplate.
-    * **Output Format:** Strictly enforce the requirement for output as a structured JSON object containing a `components` array.
-    * **Few-Shot Examples:** Embed high-quality examples demonstrating the desired JSON output, constraints, and component splitting scenarios.
-    * **Contextual Hints:** Include data extracted from image analysis (e.g., dominant colors).
-    * **Reasoning Guidance:** Instruct the AI to outline its analysis and component structure decisions before generating the JSON output.
-3.  Implement logic to dynamically insert image context (and potentially other hints) into the prompt template.
-4.  Review and refine prompt clarity, ensuring instructions are unambiguous and adhere to model context window limitations.
+1.  Adopt the **Hybrid Approach:** Focus the VLM on generating application-specific code (root component, conditionally split child components, basic routing suggestions) rather than the entire project boilerplate.
+2.  Update prompt instructions to reflect the goal of generating components for a full, runnable project.
+3.  Reinforce all constraints: Angular v19+, Material v17+ (MDC), Tailwind exclusivity, standalone APIs.
+4.  Incorporate explicit **Configuration Assumptions:** State clearly that standard Tailwind and Material v17+ configurations are assumed to be provided externally (by BE-3 Boilerplate).
+5.  Mandate the **JSON Output Format:** Require the VLM to output a JSON object containing a `components` array (with `componentName`, `typescript`, `html`, `scss` for each) and potentially basic `routing` suggestions.
+6.  Refine **Few-Shot Examples** to match the new JSON output format and demonstrate desired component structure (single vs. multi-component).
+7.  Retain **Contextual Hints** (e.g., colors) and **Reasoning Guidance** (instructing AI to explain component structure choices).
+8.  Tune API parameters (especially Temperature) for accuracy and consistency, considering model specifics (e.g., Gemini Flash).
 
 **Location/Impacted Areas:**
-* `backend/app/services/code_generator.py` (or equivalent prompt generation service)
-* `backend/app/services/ai_service.py` (or equivalent VLM interaction service)
+* `backend/app/services/code_generator.py` (or equivalent prompt service)
+* `backend/app/services/ai_service.py` (or VLM interaction service)
 
-**Dependencies:** BE-2 (Provides context for config assumptions)
+**Dependencies:** BE-3 (Defines the configuration assumptions for the prompt)
 
 ---
 
-### Task ID: BE-2
-**Title:** Implement Boilerplate Configuration Generation/Management
-**Status:** Completed ✅
+### Task ID: FPG-BE-2
+**Title:** Implement Backend Project Assembly Service
 
-**Description:** Create and manage the set of standard, static configuration files and basic application code required to form a functional Angular v19+/Material v17+ project context. This boilerplate is essential for both the AI's environmental assumptions and the StackBlitz preview environment.
+**Description:** Develop a backend service responsible for assembling the complete Angular project structure in memory, combining predefined boilerplate files with the AI-generated component code.
 
 **Technical Solution/Approach:**
-1.  Define the content for essential boilerplate files based on Angular v19+/Material v17+ standards:
-    * `package.json` (with correct dependencies and versions)
-    * `angular.json` (minimal valid structure)
-    * `tsconfig.json` (standard)
-    * `tailwind.config.js` (configured for content scanning)
-    * `src/main.ts` (bootstrapping standalone)
-    * `src/index.html` (root container)
-    * `src/styles.scss` (importing Material theme and Tailwind directives)
-    * `src/app/app.config.ts` (providing `provideAnimationsAsync`)
-    * `src/app/app.component.ts/html/scss` (minimal root component)
-2.  Store these boilerplate file contents efficiently (e.g., as constants, templates, or separate files within the backend).
-3.  Integrate this boilerplate into the logic that prepares the project structure for the StackBlitz preview (within the `prepareStackBlitzProject` function referenced in FE-1 and FE-2). Ensure these files form the base of the virtual file system before generated component files are added.
-4.  Ensure the boilerplate content aligns perfectly with the assumptions stated in the AI prompt (BE-1).
+1.  Create a new service or expand an existing one (e.g., `project_assembler_service.py`).
+2.  Define logic to load/access standard boilerplate file templates (Managed by BE-3).
+3.  Implement functionality to create a virtual file system representation (e.g., nested dictionaries mapping paths to content).
+4.  Populate this virtual structure with the boilerplate files, filling any necessary template variables (e.g., project name).
+5.  Receive the parsed JSON data (from FPG-BE-4) containing the AI-generated components.
+6.  Integrate the AI-generated code:
+    * Create appropriate directories within `src/app/` for each generated component.
+    * Write the `typescript`, `html`, and `scss` content to the corresponding files in the virtual structure.
+    * Modify boilerplate files as needed for integration (e.g., update `src/app/app.component.html` to use the main generated component's selector, update `src/app/app.routes.ts` based on generated routing info or defaults).
+    * Ensure component imports are handled correctly based on the generated structure.
+7.  Return the complete virtual file system structure to the calling process (e.g., the API endpoint).
 
 **Location/Impacted Areas:**
-* `backend/app/services/` (Potentially a new service or utility for managing boilerplate)
-* Logic related to preparing the StackBlitz `Project` object (potentially Frontend or Backend depending on architecture).
+* `backend/app/services/` (New or existing service)
+* Potential utility functions for file/directory manipulation.
+
+**Dependencies:** FPG-BE-1 (Defines AI output format), FPG-BE-3 (Provides boilerplate), FPG-BE-4 (Provides parsed AI output)
+
+---
+
+### Task ID: FPG-BE-3
+**Title:** Define and Manage Boilerplate Project Files
+
+**Description:** Define, create, and manage the content of all standard configuration and setup files required for a minimal, runnable Angular v19+/Material v17+/Tailwind CSS v3 project.
+
+**Technical Solution/Approach:**
+1.  Define the exact file structure and content for all necessary boilerplate files as listed in the technical guide (Section 5: Target Project Structure). This includes `package.json`, `angular.json`, `tailwind.config.js`, `postcss.config.js`, `tsconfig*.json`, `.gitignore`, `src/main.ts`, `src/index.html`, `src/styles.scss`, `src/app/app.config.ts`, `src/app/app.routes.ts`, `src/app/app.component.*`.
+2.  Ensure `package.json` lists correct versions for all dependencies.
+3.  Ensure `styles.scss` includes the correct Material theme import and Tailwind directives.
+4.  Ensure `tailwind.config.js` is set up for content scanning.
+5.  Ensure `app.config.ts` includes `provideAnimationsAsync`.
+6.  Store these file contents securely and accessibly within the backend (e.g., as template files, string constants).
+7.  Provide a mechanism for the Project Assembly Service (FPG-BE-2) to retrieve this boilerplate content.
+
+**Location/Impacted Areas:**
+* Backend configuration or template storage.
+* Potentially a dedicated utility/service for accessing boilerplate.
 
 **Dependencies:** None (Defines baseline for other tasks).
 
 ---
 
-### Task ID: BE-3
-**Title:** Implement JSON Output Parser & Validation
-**Status:** Completed ✅
+### Task ID: FPG-BE-4
+**Title:** Update Backend JSON Output Parser
 
-**Description:** Develop backend logic to reliably parse and validate the structured JSON response received from the VLM, which contains the generated component(s) data.
+**Description:** Modify the backend logic responsible for handling the VLM's response to parse and validate the new expected JSON format containing the `components` array (and potentially `routing`).
 
 **Technical Solution/Approach:**
-1.  Modify the backend service that receives the response from the VLM.
-2.  Implement robust JSON parsing logic capable of handling the expected structure (`{ "components": [ { "componentName": "...", "typescript": "...", "html": "...", "scss": "..." } ] }`).
-3.  Add validation checks:
-    * Confirm the response is valid JSON.
-    * Verify the presence and basic structure of the `components` array and its objects.
-    * Check if essential properties (`componentName`, `typescript`, `html`, `scss`) exist for each component.
-    * (Optional) Add basic sanity checks for code syntax if feasible.
-4.  Implement error handling for parsing failures or validation errors (e.g., logging errors, returning specific error codes/messages to the frontend).
-5.  Implement fallback logic (e.g., if parsing fails, potentially retry the AI call with a simpler prompt requesting only a single component).
-6.  Pass the successfully parsed and validated `components` array data to the frontend.
+1.  Refactor the response handling logic in the service interacting with the VLM (e.g., `ai_service.py` or `code_generator.py`).
+2.  Implement JSON parsing specifically for the defined structure: `{ "components": [ { "componentName": ..., "typescript": ..., ... } ], "routing": [...] }`.
+3.  Add robust validation checks: ensure the response is valid JSON, the `components` array exists and contains valid component objects with all required properties. Validate `routing` structure if present.
+4.  Implement error handling for parsing/validation failures, potentially triggering fallback logic or returning specific errors.
+5.  Pass the validated data structure (e.g., list of component objects, routing info) to the Project Assembly Service (FPG-BE-2).
 
 **Location/Impacted Areas:**
 * `backend/app/services/ai_service.py` (or VLM interaction service)
-* `backend/app/services/code_generator.py` (primary implementation)
-* `backend/app/controllers/` (or API endpoint handling the response)
+* `backend/app/services/code_generator.py` (or orchestrating service)
 
-**Dependencies:** BE-1 (Defines the expected JSON format)
+**Dependencies:** FPG-BE-1 (Defines the expected JSON format)
 
 ---
 
-### Task ID: FE-2
-**Title:** Enhance Frontend Preview to Handle Multi-Component Output
-**Status:** Completed ✅
+### Task ID: FPG-BE-5
+**Title:** Implement Backend Project Packaging Service
 
-**Description:** Update the StackBlitz integration logic to correctly handle the JSON response containing potentially multiple generated components, structuring the virtual file system appropriately for the preview.
+**Description:** Develop a backend service or utility to package the assembled virtual project file structure into a downloadable ZIP archive.
 
 **Technical Solution/Approach:**
-1.  Modify the `prepareStackBlitzProject` function (from FE-1) to accept the parsed `components` array from the backend (BE-3).
-2.  Iterate through the `components` array. For each component object:
-    * Dynamically determine the correct directory path within the virtual file system (e.g., `src/app/[component-name]/`). Create subdirectories as needed.
-    * Add the `typescript`, `html`, and `scss` content to the `files` object under the correct file paths (e.g., `src/app/[component-name]/[component-name].component.ts`).
-3.  Implement logic to handle potential parent-child relationships described in the generated code:
-    * Ensure the root `AppComponent` (part of the boilerplate) is set up to display the primary generated component.
-    * If multiple components are generated, ensure the file structure supports the relative import paths the AI *should* have generated (requires AI accuracy from BE-1). No complex dynamic module loading is needed if using standalone components correctly imported.
-4.  Update the `sdk.embedProject` options if necessary (e.g., setting the `openFile` option to the main parent component).
+1.  Create a new utility function or service (e.g., `packaging_service.py`).
+2.  Define a function that accepts the virtual file system structure (e.g., dictionary mapping paths to content) from the Assembly Service (FPG-BE-2).
+3.  Use a suitable Python library (e.g., `zipfile`) to create a ZIP archive in memory.
+4.  Iterate through the virtual file structure, adding each file and directory to the ZIP archive with the correct relative paths.
+5.  Return the generated ZIP archive as an in-memory bytes object or stream.
 
 **Location/Impacted Areas:**
-* Frontend logic responsible for creating the StackBlitz `Project` object (likely in `PreviewPaneComponent` or `PreviewService`).
+* `backend/app/services/` or `backend/app/utils/`
 
-**Dependencies:** FE-1, BE-3, BE-2
+**Dependencies:** FPG-BE-2 (Provides the file structure)
+
+---
+
+### Task ID: FPG-BE-6
+**Title:** Modify Backend API Endpoint for File Download
+
+**Description:** Update the primary code generation API endpoint to orchestrate the new workflow (VLM call, assembly, packaging) and return the generated ZIP archive as a file download.
+
+**Technical Solution/Approach:**
+1.  Modify the existing endpoint logic (e.g., `/generate-code`).
+2.  Orchestrate the sequence: call VLM service -> get response -> call JSON parser (FPG-BE-4) -> call Project Assembler (FPG-BE-2) -> call Packaging Service (FPG-BE-5).
+3.  Change the endpoint's response mechanism to return a file.
+4.  Use the framework's specific method for returning file responses (e.g., FastAPI's `StreamingResponse` or `FileResponse`).
+5.  Set appropriate HTTP headers:
+    * `Content-Type: application/zip`
+    * `Content-Disposition: attachment; filename="generated_angular_project.zip"`
+6.  Stream the ZIP archive data (from FPG-BE-5) in the response body.
+7.  Ensure proper error handling throughout the orchestration process, returning appropriate HTTP error statuses and messages if any step fails.
+
+**Location/Impacted Areas:**
+* `backend/app/api/v1/endpoints/generate_code.py` (or equivalent)
+
+**Dependencies:** FPG-BE-1, FPG-BE-2, FPG-BE-4, FPG-BE-5
+
+---
+
+### Task ID: FPG-FE-1
+**Title:** Update Frontend UI for Download Functionality
+
+**Description:** Modify the generator page UI to remove preview/code display elements and replace the primary action with a project download mechanism.
+
+**Technical Solution/Approach:**
+1.  Remove UI components related to code viewing (e.g., Monaco editor instances via `CodeViewerComponent`) and live preview (e.g., `PreviewPaneComponent` containing iframe/StackBlitz/CodeSandbox).
+2.  Update the main "Generate" button's text and associated action, or add a new button labeled "Generate & Download Project (.zip)".
+3.  Retain input elements (image/Figma), multi-model selection UI (if applicable), loading indicators, and error display areas.
+
+**Location/Impacted Areas:**
+* `frontend/src/app/pages/generator-page/` (HTML & TS)
+
+**Dependencies:** None
+
+---
+
+### Task ID: FPG-FE-2
+**Title:** Implement Frontend API Call and File Download Handling
+
+**Description:** Update the frontend API service call to expect a file blob response and implement logic in the component to trigger the browser's file download mechanism.
+
+**Technical Solution/Approach:**
+1.  Modify the relevant method in `ApiService` to specify the expected response type as a blob (e.g., `responseType: 'blob'` for Angular `HttpClient`).
+2.  Update the component (`GeneratorPageComponent`) logic that calls this service method.
+3.  On successful API response:
+    * Receive the `Blob` object containing the ZIP file data.
+    * Use browser APIs (`URL.createObjectURL`, creating an `<a>` element, setting its `href` and `download` attributes, and simulating a click) to initiate the file download prompt for the user with the filename `generated_angular_project.zip`.
+    * Revoke the object URL after the download is initiated to free up resources (`URL.revokeObjectURL`).
+4.  Implement robust error handling for the API call (e.g., displaying error messages received from the backend).
+
+**Location/Impacted Areas:**
+* `frontend/src/app/services/api.service.ts`
+* `frontend/src/app/pages/generator-page/` (Component TS)
+
+**Dependencies:** FPG-BE-6 (Provides the downloadable file endpoint)
