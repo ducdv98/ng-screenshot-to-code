@@ -30,6 +30,9 @@ class BoilerplateService:
         # Add tailwind.config.js
         files["tailwind.config.js"] = BoilerplateService._get_tailwind_config()
         
+        # Add postcss.config.js
+        files["postcss.config.js"] = BoilerplateService._get_postcss_config()
+        
         # Add main.ts
         files["src/main.ts"] = BoilerplateService._get_main_ts()
         
@@ -42,10 +45,28 @@ class BoilerplateService:
         # Add app.config.ts
         files["src/app/app.config.ts"] = BoilerplateService._get_app_config_ts()
         
+        # Add app.routes.ts
+        files["src/app/app.routes.ts"] = BoilerplateService._get_app_routes_ts()
+        
         # Add app component files
         files["src/app/app.component.ts"] = BoilerplateService._get_app_component_ts()
         files["src/app/app.component.html"] = BoilerplateService._get_app_component_html()
         files["src/app/app.component.scss"] = BoilerplateService._get_app_component_scss()
+        
+        # Add .gitignore
+        files[".gitignore"] = BoilerplateService._get_gitignore()
+        
+        # Add tsconfig.app.json
+        files["tsconfig.app.json"] = BoilerplateService._get_tsconfig_app_json()
+        
+        # Add tsconfig.spec.json
+        files["tsconfig.spec.json"] = BoilerplateService._get_tsconfig_spec_json()
+        
+        # Create assets directory placeholder
+        files["src/assets/.gitkeep"] = ""
+        
+        # Add README.md
+        files["README.md"] = BoilerplateService._get_readme()
         
         return files
     
@@ -245,14 +266,24 @@ module.exports = {
 }"""
     
     @staticmethod
+    def _get_postcss_config() -> str:
+        """Returns the content for postcss.config.js."""
+        return """module.exports = {
+  plugins: {
+    tailwindcss: {},
+    autoprefixer: {},
+  },
+}"""
+    
+    @staticmethod
     def _get_main_ts() -> str:
         """Returns the content for src/main.ts."""
         return """import { bootstrapApplication } from '@angular/platform-browser';
-import { AppComponent } from './app/app.component';
 import { appConfig } from './app/app.config';
+import { AppComponent } from './app/app.component';
 
 bootstrapApplication(AppComponent, appConfig)
-  .catch(err => console.error(err));
+  .catch((err) => console.error(err));
 """
     
     @staticmethod
@@ -272,40 +303,55 @@ bootstrapApplication(AppComponent, appConfig)
 <body class="mat-typography">
   <app-root></app-root>
 </body>
-</html>
-"""
+</html>"""
     
     @staticmethod
     def _get_styles_scss() -> str:
         """Returns the content for src/styles.scss."""
         return """/* You can add global styles to this file, and also import other style files */
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
-/* Import Angular Material themes */
 @use '@angular/material' as mat;
+
+// Include Material core styles
 @include mat.core();
 
-/* Define a custom theme */
+// Define a theme.
 $primary: mat.define-palette(mat.$indigo-palette);
 $accent: mat.define-palette(mat.$pink-palette, A200, A100, A400);
-$warn: mat.define-palette(mat.$red-palette);
 
+// Define a light theme
 $theme: mat.define-light-theme((
   color: (
     primary: $primary,
     accent: $accent,
-    warn: $warn,
   ),
   typography: mat.define-typography-config(),
   density: 0,
 ));
 
+// Apply the Material theme
 @include mat.all-component-themes($theme);
 
-html, body { height: 100%; }
-body { margin: 0; font-family: Roboto, "Helvetica Neue", sans-serif; }
+/* Tailwind directives */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Global styles */
+html, body { 
+  height: 100%; 
+}
+
+body { 
+  margin: 0; 
+  font-family: Roboto, "Helvetica Neue", sans-serif; 
+}
+
+/* Base container styles */
+.app-container {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
 """
     
     @staticmethod
@@ -315,34 +361,46 @@ body { margin: 0; font-family: Roboto, "Helvetica Neue", sans-serif; }
 import { provideRouter } from '@angular/router';
 import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
 
+import { routes } from './app.routes';
+
 export const appConfig: ApplicationConfig = {
   providers: [
-    provideRouter([]),
+    provideRouter(routes),
     provideAnimationsAsync()
   ]
 };
 """
     
     @staticmethod
+    def _get_app_routes_ts() -> str:
+        """Returns the content for src/app/app.routes.ts."""
+        return """import { Routes } from '@angular/router';
+
+// Default routes, will be updated during project assembly with generated components
+export const routes: Routes = [
+  { path: '', redirectTo: '', pathMatch: 'full' }
+];
+"""
+    
+    @staticmethod
     def _get_app_component_ts() -> str:
         """Returns the content for src/app/app.component.ts."""
         return """import { Component } from '@angular/core';
+import { RouterOutlet } from '@angular/router';
 import { CommonModule } from '@angular/common';
-// Import additional generated components here
-// The dynamic ID will be replaced with the actual component
 
 @Component({
   selector: 'app-root',
   standalone: true,
   imports: [
     CommonModule,
-    // Import additional generated components here
+    RouterOutlet
   ],
   templateUrl: './app.component.html',
   styleUrls: ['./app.component.scss']
 })
 export class AppComponent {
-  title = 'Generated Angular App';
+  title = 'generated-angular-app';
 }
 """
     
@@ -350,18 +408,149 @@ export class AppComponent {
     def _get_app_component_html() -> str:
         """Returns the content for src/app/app.component.html."""
         return """<div class="app-container">
-  <!-- Generated content will be rendered here -->
-  <!-- The placeholder will be replaced with the actual component -->
+  <!-- Generated components will be inserted here during project assembly -->
 </div>
+
+<router-outlet></router-outlet>
 """
     
     @staticmethod
     def _get_app_component_scss() -> str:
         """Returns the content for src/app/app.component.scss."""
-        return """.app-container {
+        return """// Application-level styles
+.app-container {
   width: 100%;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 1rem;
 }
+"""
+    
+    @staticmethod
+    def _get_gitignore() -> str:
+        """Returns the content for .gitignore."""
+        return """# See http://help.github.com/ignore-files/ for more about ignoring files.
+
+# Compiled output
+/dist
+/tmp
+/out-tsc
+/bazel-out
+
+# Node
+/node_modules
+npm-debug.log
+yarn-error.log
+
+# IDEs and editors
+.idea/
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+*.sublime-workspace
+
+# Visual Studio Code
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+.history/*
+
+# Miscellaneous
+/.angular/cache
+.sass-cache/
+/connect.lock
+/coverage
+/libpeerconnection.log
+testem.log
+/typings
+
+# System files
+.DS_Store
+Thumbs.db
+"""
+    
+    @staticmethod
+    def _get_tsconfig_app_json() -> str:
+        """Returns the content for tsconfig.app.json."""
+        return """{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "outDir": "./out-tsc/app",
+    "types": []
+  },
+  "files": [
+    "src/main.ts"
+  ],
+  "include": [
+    "src/**/*.d.ts"
+  ]
+}"""
+    
+    @staticmethod
+    def _get_tsconfig_spec_json() -> str:
+        """Returns the content for tsconfig.spec.json."""
+        return """{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "outDir": "./out-tsc/spec",
+    "types": [
+      "jasmine"
+    ]
+  },
+  "include": [
+    "src/**/*.spec.ts",
+    "src/**/*.d.ts"
+  ]
+}"""
+    
+    @staticmethod
+    def _get_readme() -> str:
+        """Returns the content for README.md."""
+        return """# Generated Angular Application
+
+This Angular application was automatically generated from a visual design using AI technology.
+
+## Getting Started
+
+1. Install dependencies:
+   ```
+   npm install
+   ```
+
+2. Start the development server:
+   ```
+   npm start
+   ```
+
+3. Open your browser and navigate to `http://localhost:4200/`
+
+## Technology Stack
+
+- Angular v19+
+- Angular Material v17+
+- Tailwind CSS v3+
+
+## Project Structure
+
+This is a standard Angular CLI project with the following structure:
+
+- `src/app/` - Contains the main application code
+  - Components are organized in their own folders
+  - Routing configuration is in `app.routes.ts`
+- `src/assets/` - Place for static assets like images
+- Configuration files for Angular, TypeScript, and Tailwind CSS at the root
+
+## Customization
+
+Feel free to modify this code as needed for your project. The generated components 
+provide a starting point based on the provided design.
+
+## Further Help
+
+To get more help on the Angular CLI use `ng help` or check out the 
+[Angular CLI Overview and Command Reference](https://angular.io/cli) page.
 """ 
