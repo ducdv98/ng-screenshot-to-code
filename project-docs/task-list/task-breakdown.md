@@ -121,6 +121,7 @@ This document details the tasks required to pivot the project towards generating
 
 ### Task ID: FPG-BE-6
 **Title:** Modify Backend API Endpoint for File Download
+**Status:** COMPLETED ✅
 
 **Description:** Update the primary code generation API endpoint to orchestrate the new workflow (VLM call, assembly, packaging) and return the generated ZIP archive as a file download.
 
