@@ -57,6 +57,10 @@ class CodeGenerator:
         if "components" in result and isinstance(result["components"], list):
             generated_code.components = result["components"]
         
+        # Attach routing information if available
+        if "routing" in result and isinstance(result["routing"], list):
+            generated_code.routing = result["routing"]
+        
         return generated_code
     
     async def generate_from_figma_data(self, figma_data: Dict[str, Any]) -> GeneratedCode:
@@ -116,6 +120,10 @@ class CodeGenerator:
         # Attach all components array if available
         if "components" in result and isinstance(result["components"], list):
             generated_code.components = result["components"]
+        
+        # Attach routing information if available
+        if "routing" in result and isinstance(result["routing"], list):
+            generated_code.routing = result["routing"]
         
         return generated_code
     
@@ -590,57 +598,74 @@ export class ErrorComponent {{
     
     def _parse_ai_response(self, response_text: str) -> Dict[str, Any]:
         """
-        Parse the AI's response text to extract the generated component code.
+        Parse the AI response to extract TypeScript, HTML, and SCSS code blocks.
+        This method has been updated to handle the new JSON format for the full Angular project generation.
         
         Args:
-            response_text: The raw response from the AI service
+            response_text: The raw text response from the AI
             
         Returns:
-            Dictionary containing the parsed component code
+            Dictionary with component_ts, component_html, component_scss, component_name, 
+            components array, and routing information
         """
-        # Try to find JSON content within the response using regex
         try:
-            import re
+            # First try to parse the entire response as JSON
             import json
+            import re
             
-            # Look for JSON content that might be enclosed in triple backticks
-            json_match = re.search(r'```(?:json)?\s*(\{.*?\})\s*```', response_text, re.DOTALL)
-            
+            # Clean up the response text in case there's markdown or explanatory text
+            # Look for JSON blocks in the response
+            json_match = re.search(r'```json\s*(.+?)\s*```', response_text, re.DOTALL)
             if json_match:
-                # Extract the JSON content
-                json_str = json_match.group(1)
-                result = json.loads(json_str)
+                json_content = json_match.group(1)
             else:
-                # If no triple backticks, try to parse the entire response
-                json_str = response_text.strip()
-                result = json.loads(json_str)
+                # Try to find just a raw JSON object
+                json_match = re.search(r'(\{\s*"components"\s*:.+\})', response_text, re.DOTALL)
+                if json_match:
+                    json_content = json_match.group(1)
+                else:
+                    json_content = response_text  # Assume the entire response might be JSON
             
-            # Validate the response structure for the expected format
-            if "components" not in result or not isinstance(result["components"], list) or len(result["components"]) == 0:
-                raise ValueError("Invalid response format: missing or empty 'components' array")
-            
-            # Extract the main/first component for backward compatibility
-            main_component = result["components"][0]
-            
-            # Create the result structure expected by the rest of the code
-            parsed_result = {
-                "component_ts": main_component.get("typescript", ""),
-                "component_html": main_component.get("html", ""),
-                "component_scss": main_component.get("scss", ""),
-                "component_name": main_component.get("componentName", "generated-component"),
-                "components": result["components"],  # Include all components
-            }
-            
-            # Add routing information if available
-            if "routing" in result and isinstance(result["routing"], list):
-                parsed_result["routing"] = result["routing"]
-            
-            return parsed_result
-        except (json.JSONDecodeError, ValueError, KeyError) as e:
-            # Log the error and fall back to a simple extraction approach
-            print(f"Error parsing AI response: {str(e)}")
-            
-            # As a fallback, try to extract code blocks traditionally
+            # Try to parse the JSON
+            try:
+                parsed_data = json.loads(json_content)
+                
+                # Validate the expected structure: must have 'components' array
+                if 'components' not in parsed_data or not isinstance(parsed_data['components'], list) or len(parsed_data['components']) == 0:
+                    raise ValueError("Invalid JSON structure: missing or empty 'components' array")
+                
+                # Extract the components
+                components = parsed_data['components']
+                primary_component = components[0]  # First component is primary
+                
+                # Validate required properties in the primary component
+                required_props = ['componentName', 'typescript', 'html', 'scss']
+                for prop in required_props:
+                    if prop not in primary_component:
+                        raise ValueError(f"Primary component missing required property: {prop}")
+                
+                # Set up the result dictionary with primary component data
+                result = {
+                    'component_name': primary_component['componentName'],
+                    'component_ts': primary_component['typescript'],
+                    'component_html': primary_component['html'],
+                    'component_scss': primary_component['scss'],
+                    'components': components
+                }
+                
+                # Add routing information if available
+                if 'routing' in parsed_data and isinstance(parsed_data['routing'], list):
+                    result['routing'] = parsed_data['routing']
+                
+                return result
+                
+            except json.JSONDecodeError:
+                # If JSON parsing failed, fall back to the regular parsing method
+                return self._extract_code_blocks_fallback(response_text)
+                
+        except Exception as e:
+            # Fall back to the original parsing method if any exception occurs
+            print(f"Error parsing JSON response: {str(e)}")
             return self._extract_code_blocks_fallback(response_text)
 
     def _extract_code_blocks_fallback(self, response_text: str) -> Dict[str, Any]:

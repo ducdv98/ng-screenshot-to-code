@@ -11,6 +11,7 @@ class GeneratedCode(BaseModel):
     component_name: str = Field(..., description="Suggested name for the component")
     warnings: Optional[List[str]] = Field(default=None, description="Warnings related to the generated code")
     components: Optional[List[Dict[str, Any]]] = Field(default=None, description="Array of component objects when multiple components are generated")
+    routing: Optional[List[Dict[str, Any]]] = Field(default=None, description="Array of routing configuration objects for the Angular application")
     
     class Config:
         schema_extra = {
@@ -26,6 +27,12 @@ class GeneratedCode(BaseModel):
                         "typescript": "import { Component } from '@angular/core';\n\n@Component({\n  selector: 'app-button',\n  templateUrl: './button.component.html',\n  styleUrls: ['./button.component.scss']\n})\nexport class ButtonComponent {}\n",
                         "html": "<button mat-raised-button color=\"primary\" class=\"px-4 py-2 rounded-lg\">\n  Click Me\n</button>\n",
                         "scss": "@tailwind base;\n@tailwind components;\n@tailwind utilities;\n"
+                    }
+                ],
+                "routing": [
+                    {
+                        "path": "",
+                        "componentName": "ButtonComponent"
                     }
                 ]
             }
