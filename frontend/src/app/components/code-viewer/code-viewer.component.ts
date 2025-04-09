@@ -1,6 +1,5 @@
 import { Component, Input, AfterViewInit, OnChanges, SimpleChanges, ViewChild, ElementRef, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { MatTabsModule, MatTabChangeEvent } from '@angular/material/tabs';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
@@ -10,18 +9,46 @@ import { FormsModule } from '@angular/forms';
 import * as monaco from 'monaco-editor';
 import { GeneratedCode, GeneratedComponent } from '../../models/generated-code.model';
 import { MonacoLoaderService } from '../../services/monaco-loader.service';
+import { MatTreeModule } from '@angular/material/tree';
+import { FlatTreeControl } from '@angular/cdk/tree';
+import { MatTreeFlatDataSource, MatTreeFlattener } from '@angular/material/tree';
+
+/**
+ * File tree node for directory structure
+ */
+interface FileNode {
+  name: string;
+  type: 'file' | 'directory';
+  children?: FileNode[];
+  fileType?: 'typescript' | 'html' | 'scss';
+  componentIndex?: number;
+  path: string;
+}
+
+/**
+ * Flattened tree node with level information
+ */
+interface FlatFileNode {
+  name: string;
+  type: 'file' | 'directory';
+  level: number;
+  expandable: boolean;
+  fileType?: 'typescript' | 'html' | 'scss';
+  componentIndex?: number;
+  path: string;
+}
 
 @Component({
   selector: 'app-code-viewer',
   standalone: true,
   imports: [
     CommonModule,
-    MatTabsModule,
     MatButtonModule,
     MatIconModule,
     MatSnackBarModule,
     MatTooltipModule,
     MatSelectModule,
+    MatTreeModule,
     FormsModule
   ],
   templateUrl: './code-viewer.component.html',
@@ -32,327 +59,358 @@ export class CodeViewerComponent implements AfterViewInit, OnChanges, OnDestroy 
   @Input() code: string | null | undefined = null;
   @Input() language: string = 'typescript';
   @Input() fileName: string | null = null;
-  @Input() showSingleEditor: boolean = false;
   
-  @ViewChild('singleLanguageEditor') singleLanguageEditorElement?: ElementRef;
-  @ViewChild('singleEditor') singleEditorElement?: ElementRef;
+  @ViewChild('editorContainer') editorContainer?: ElementRef;
   
-  private singleLanguageEditor: monaco.editor.IStandaloneCodeEditor | null = null;
-  private singleEditor: monaco.editor.IStandaloneCodeEditor | null = null;
-  
-  private defaultTsValue = '// TypeScript code will appear here';
-  private defaultHtmlValue = '<!-- HTML code will appear here -->';
-  private defaultScssValue = '/* SCSS code will appear here */';
-  
-  activeLanguage: string = 'typescript';
-  
+  private editor: monaco.editor.IStandaloneCodeEditor | null = null;
   selectedComponentIndex: number = 0;
   selectedComponent: GeneratedComponent | null = null;
+  activeFileType: 'typescript' | 'html' | 'scss' = 'typescript';
+  selectedFilePath: string = '';
   
   screenReaderMessage = '';
+
+  // Tree control for file structure
+  private _transformer = (node: FileNode, level: number): FlatFileNode => {
+    return {
+      name: node.name,
+      type: node.type,
+      level: level,
+      expandable: !!node.children && node.children.length > 0,
+      fileType: node.fileType,
+      componentIndex: node.componentIndex,
+      path: node.path
+    };
+  };
+
+  treeControl = new FlatTreeControl<FlatFileNode>(
+    node => node.level,
+    node => node.expandable
+  );
+
+  treeFlattener = new MatTreeFlattener(
+    this._transformer,
+    node => node.level,
+    node => node.expandable,
+    node => node.children
+  );
+
+  fileDataSource = new MatTreeFlatDataSource(this.treeControl, this.treeFlattener);
   
   constructor(private snackBar: MatSnackBar, private monacoLoader: MonacoLoaderService) {}
   
   ngAfterViewInit(): void {
     this.monacoLoader.loadMonaco().then(() => {
-      this.initEditors();
+      this.initEditor();
     }).catch(error => {
       console.error('Failed to load Monaco editor', error);
     });
   }
   
   ngOnChanges(changes: SimpleChanges): void {
-    if (changes['generatedCode'] && this.generatedCode) {
-      if (this.generatedCode.components && this.generatedCode.components.length > 0) {
-        this.selectedComponent = this.generatedCode.components[0];
-        this.selectedComponentIndex = 0;
+    if ((changes['generatedCode'] && this.generatedCode) || 
+        (changes['code'] && this.code !== undefined) || 
+        changes['language']) {
+      this.monacoLoader.loadMonaco().then(() => {
+        if (!this.editor) {
+          this.initEditor();
+        } 
         
-        if (this.showSingleEditor) {
-          if (this.language === 'typescript') {
-            this.code = this.selectedComponent.typescript;
-          } else if (this.language === 'html') {
-            this.code = this.selectedComponent.html;
-          } else if (this.language === 'scss') {
-            this.code = this.selectedComponent.scss;
+        if (changes['generatedCode'] && this.generatedCode) {
+          if (this.generatedCode.components && this.generatedCode.components.length > 0) {
+            this.selectedComponent = this.generatedCode.components[0];
+            this.selectedComponentIndex = 0;
+            this.activeFileType = 'typescript';
+            this.buildFileTree();
+            this.updateEditor();
           }
-          
-          this.fileName = `${this.selectedComponent.componentName}.component.${this.language}`;
+          this.announceToScreenReader(`Code generated successfully for ${this.selectedComponent?.componentName || 'component'}`);
+        } else {
+          this.updateEditor();
         }
-      }
-      
-      this.monacoLoader.loadMonaco().then(() => {
-        this.initEditors();
-        this.updateEditors();
-        this.announceToScreenReader(`Code generated successfully for ${this.selectedComponent?.componentName || 'component'}`);
-      }).catch(error => {
-        console.error('Failed to load Monaco editor', error);
-      });
-    }
-    
-    if (changes['code'] && this.code && this.showSingleEditor) {
-      this.monacoLoader.loadMonaco().then(() => {
-        this.initSingleEditor();
-        this.updateSingleEditor();
-        this.announceToScreenReader(`Code updated in editor`);
       }).catch(error => {
         console.error('Failed to load Monaco editor', error);
       });
     }
   }
   
-  setActiveLanguage(language: string): void {
-    if (this.activeLanguage === language) {
+  private initEditor(): void {
+    if (!this.editorContainer) {
       return;
     }
     
-    this.activeLanguage = language;
-    this.updateSingleLanguageEditor();
-    this.announceToScreenReader(`${language} tab selected`);
-  }
-  
-  private initEditors(): void {
-    if (this.showSingleEditor) {
-      this.initSingleEditor();
-    } else {
-      this.initSingleLanguageEditor();
-    }
-  }
-  
-  private initSingleLanguageEditor(): void {
-    if (this.singleLanguageEditor) {
-      this.updateSingleLanguageEditor();
-      return;
-    }
-    
-    if (!this.singleLanguageEditorElement) {
-      return;
-    }
-    
-    if (!this.singleLanguageEditorElement.nativeElement.querySelector('.monaco-editor')) {
-      const language = this.activeLanguage === 'typescript' ? 'typescript' :
-                      this.activeLanguage === 'html' ? 'html' : 'scss';
+    if (!this.editorContainer.nativeElement.querySelector('.monaco-editor')) {
+      const value = this.getDisplayContent();
       
-      this.singleLanguageEditor = monaco.editor.create(this.singleLanguageEditorElement.nativeElement, {
-        value: this.getCodeForLanguage(language),
-        language,
-        theme: 'vs-dark',
-        automaticLayout: true,
-        minimap: { enabled: false },
-        readOnly: true,
-        accessibilitySupport: 'auto' as 'auto'
-      });
-    }
-  }
-  
-  private initSingleEditor(): void {
-    if (this.singleEditor) {
-      return;
-    }
-    
-    if (!this.singleEditorElement) {
-      return;
-    }
-    
-    if (!this.singleEditorElement.nativeElement.querySelector('.monaco-editor')) {
-      this.singleEditor = monaco.editor.create(this.singleEditorElement.nativeElement, {
-        value: this.code || '// Code will appear here',
+      this.editor = monaco.editor.create(this.editorContainer.nativeElement, {
+        value,
         language: this.language,
         theme: 'vs-dark',
         automaticLayout: true,
-        minimap: { enabled: false },
+        minimap: { enabled: true },
         readOnly: true,
-        accessibilitySupport: 'auto' as 'auto'
+        accessibilitySupport: 'auto' as 'auto',
+        scrollBeyondLastLine: false,
+        lineNumbers: 'on',
+        wordWrap: 'on'
       });
     }
   }
   
-  private updateSingleLanguageEditor(): void {
-    if (!this.singleLanguageEditor) {
-      if (this.singleLanguageEditorElement) {
-        setTimeout(() => this.updateSingleLanguageEditor(), 100);
-        return;
-      }
-    }
-    
-    if (this.singleLanguageEditor) {
-      const language = this.activeLanguage === 'typescript' ? 'typescript' :
-                      this.activeLanguage === 'html' ? 'html' : 'scss';
-      
-      this.singleLanguageEditor.setValue(this.getCodeForLanguage(language));
-      monaco.editor.setModelLanguage(this.singleLanguageEditor.getModel()!, language);
-    }
-  }
-  
-  private getCodeForLanguage(language: string): string {
-    if (this.selectedComponent) {
-      if (language === 'typescript') {
-        return this.selectedComponent.typescript || this.defaultTsValue;
-      } else if (language === 'html') {
-        return this.selectedComponent.html || this.defaultHtmlValue;
-      } else {
-        return this.selectedComponent.scss || this.defaultScssValue;
-      }
-    } else if (this.generatedCode && this.generatedCode.components.length > 0) {
-      const component = this.generatedCode.components[0];
-      if (language === 'typescript') {
-        return component.typescript || this.defaultTsValue;
-      } else if (language === 'html') {
-        return component.html || this.defaultHtmlValue;
-      } else {
-        return component.scss || this.defaultScssValue;
-      }
-    }
-    
-    return language === 'typescript' ? this.defaultTsValue : 
-           language === 'html' ? this.defaultHtmlValue : this.defaultScssValue;
-  }
-  
-  private updateSingleEditor(): void {
-    if (!this.singleEditor) {
+  private updateEditor(): void {
+    if (!this.editor) {
       return;
     }
     
-    if (this.code) {
-      this.singleEditor.setValue(this.code);
-      monaco.editor.setModelLanguage(this.singleEditor.getModel()!, this.language);
-    }
+    const value = this.getDisplayContent();
+    this.editor.setValue(value);
+    monaco.editor.setModelLanguage(this.editor.getModel()!, this.language);
   }
   
-  private updateEditors(): void {
-    this.updateSingleLanguageEditor();
-    if (this.singleEditor) {
-      this.updateSingleEditor();
+  private getDisplayContent(): string {
+    // If direct code is provided, use it
+    if (this.code !== null && this.code !== undefined) {
+      return this.code;
     }
-  }
-  
-  onComponentChange(): void {
-    if (this.generatedCode && this.generatedCode.components.length > this.selectedComponentIndex) {
-      this.selectedComponent = this.generatedCode.components[this.selectedComponentIndex];
-      this.updateSingleLanguageEditor();
-      this.announceToScreenReader(`Selected component: ${this.selectedComponent.componentName}`);
-    }
-  }
-  
-  copyCode(type: 'ts' | 'html' | 'scss' | 'single'): void {
-    let content = '';
-    let typeLabel = '';
     
-    if (type === 'single' && this.code) {
-      content = this.code;
-      typeLabel = this.fileName || this.language;
-    } else {
-      // Get content based on current component
+    // Otherwise, get code from the selected component
+    if (this.generatedCode && this.generatedCode.components.length > 0) {
+      if (!this.selectedComponent && this.generatedCode.components.length > this.selectedComponentIndex) {
+        this.selectedComponent = this.generatedCode.components[this.selectedComponentIndex];
+      }
+      
       if (this.selectedComponent) {
-        if (type === 'ts') {
-          content = this.selectedComponent.typescript;
-          typeLabel = 'TypeScript';
-        } else if (type === 'html') {
-          content = this.selectedComponent.html;
-          typeLabel = 'HTML';
-        } else if (type === 'scss') {
-          content = this.selectedComponent.scss;
-          typeLabel = 'SCSS';
-        }
-      } else if (this.generatedCode && this.generatedCode.components.length > 0) {
-        const component = this.generatedCode.components[0];
-        if (type === 'ts') {
-          content = component.typescript;
-          typeLabel = 'TypeScript';
-        } else if (type === 'html') {
-          content = component.html;
-          typeLabel = 'HTML';
-        } else if (type === 'scss') {
-          content = component.scss;
-          typeLabel = 'SCSS';
+        if (this.activeFileType === 'typescript') {
+          return this.selectedComponent.typescript || '// No TypeScript code available';
+        } else if (this.activeFileType === 'html') {
+          return this.selectedComponent.html || '<!-- No HTML code available -->';
+        } else if (this.activeFileType === 'scss') {
+          return this.selectedComponent.scss || '/* No SCSS code available */';
         }
       }
     }
     
+    return this.activeFileType === 'typescript' ? '// No code available' : 
+           this.activeFileType === 'html' ? '<!-- No code available -->' : 
+           '/* No code available */';
+  }
+  
+  /**
+   * Build file tree from generated components
+   */
+  private buildFileTree(): void {
+    if (!this.generatedCode || !this.generatedCode.components) {
+      this.fileDataSource.data = [];
+      return;
+    }
+    
+    const root: FileNode = {
+      name: 'src',
+      type: 'directory',
+      path: 'src',
+      children: [
+        {
+          name: 'app',
+          type: 'directory',
+          path: 'src/app',
+          children: []
+        }
+      ]
+    };
+    
+    const appFolder = root.children![0];
+    
+    // Add components folder
+    const componentsFolder: FileNode = {
+      name: 'components',
+      type: 'directory',
+      path: 'src/app/components',
+      children: []
+    };
+    
+    // Add each component as a subfolder with its files
+    this.generatedCode.components.forEach((component, index) => {
+      const kebabName = this.toKebabCase(component.componentName);
+      const componentFolder: FileNode = {
+        name: kebabName,
+        type: 'directory',
+        path: `src/app/components/${kebabName}`,
+        children: [
+          {
+            name: `${kebabName}.component.ts`,
+            type: 'file',
+            fileType: 'typescript',
+            componentIndex: index,
+            path: `src/app/components/${kebabName}/${kebabName}.component.ts`
+          },
+          {
+            name: `${kebabName}.component.html`,
+            type: 'file',
+            fileType: 'html',
+            componentIndex: index,
+            path: `src/app/components/${kebabName}/${kebabName}.component.html`
+          },
+          {
+            name: `${kebabName}.component.scss`,
+            type: 'file',
+            fileType: 'scss',
+            componentIndex: index,
+            path: `src/app/components/${kebabName}/${kebabName}.component.scss`
+          }
+        ]
+      };
+      
+      componentsFolder.children!.push(componentFolder);
+    });
+    
+    appFolder.children!.push(componentsFolder);
+    this.fileDataSource.data = [root];
+    
+    // Expand the initial tree
+    this.treeControl.dataNodes.forEach(node => {
+      if (node.level < 3) {
+        this.treeControl.expand(node);
+      }
+    });
+    
+    // Select first component typescript file by default
+    if (this.generatedCode.components.length > 0) {
+      const kebabName = this.toKebabCase(this.generatedCode.components[0].componentName);
+      this.selectedFilePath = `src/app/components/${kebabName}/${kebabName}.component.ts`;
+    }
+  }
+  
+  /**
+   * Handle file node click in tree
+   */
+  fileNodeClicked(node: FlatFileNode): void {
+    if (node.type === 'file' && node.fileType && node.componentIndex !== undefined) {
+      this.selectedComponentIndex = node.componentIndex;
+      this.selectedComponent = this.generatedCode?.components[node.componentIndex] || null;
+      this.activeFileType = node.fileType;
+      this.selectedFilePath = node.path;
+      this.language = node.fileType;
+      this.updateEditor();
+      this.announceToScreenReader(`Selected file: ${node.name}`);
+    }
+  }
+  
+  /**
+   * Check if node has child nodes (for tree)
+   */
+  hasChild(_: number, node: FlatFileNode): boolean {
+    return node.expandable;
+  }
+  
+  /**
+   * Convert component name to kebab case for filenames
+   */
+  private toKebabCase(str: string): string {
+    return str
+      .replace(/([a-z])([A-Z])/g, '$1-$2')
+      .replace(/[\s_]+/g, '-')
+      .toLowerCase();
+  }
+  
+  copyCode(): void {
+    const content = this.getDisplayContent();
+    
     if (content) {
       navigator.clipboard.writeText(content).then(() => {
-        this.snackBar.open(`${typeLabel} code copied to clipboard`, 'Dismiss', {
-          duration: 3000,
-          horizontalPosition: 'center',
-          verticalPosition: 'bottom'
+        this.snackBar.open('Code copied to clipboard', 'Dismiss', {
+          duration: 3000
         });
-        this.announceToScreenReader(`${typeLabel} code copied to clipboard`);
-      }).catch(err => {
-        console.error('Could not copy text: ', err);
-        this.snackBar.open('Failed to copy to clipboard', 'Dismiss', {
+        this.announceToScreenReader('Code copied to clipboard');
+      }).catch(error => {
+        console.error('Failed to copy code', error);
+        this.snackBar.open('Failed to copy code', 'Dismiss', {
           duration: 3000
         });
       });
     }
   }
   
-  copyCodeByLanguage(): void {
-    this.copyCode(this.activeLanguage as 'ts' | 'html' | 'scss');
+  downloadFile(): void {
+    if (!this.selectedComponent) {
+      return;
+    }
+    
+    const content = this.getDisplayContent();
+    const extension = this.language === 'typescript' ? 'ts' : 
+                     this.language === 'html' ? 'html' : 'scss';
+    
+    const componentName = this.selectedComponent.componentName || 'component';
+    const filename = `${this.toKebabCase(componentName)}.component.${extension}`;
+    
+    this.createAndDownloadFile(filename, content);
   }
   
   downloadAllFiles(): void {
-    if (!this.generatedCode) return;
+    if (!this.selectedComponent) {
+      return;
+    }
     
-    // Download files for all components
-    this.generatedCode.components.forEach(component => {
-      const kebabName = this.toKebabCase(component.componentName);
-      
-      // Download TypeScript file
-      this.downloadFile(
-        `${kebabName}.component.ts`, 
-        component.typescript
-      );
-      
-      // Download HTML file
-      this.downloadFile(
-        `${kebabName}.component.html`,
-        component.html
-      );
-      
-      // Download SCSS file
-      this.downloadFile(
-        `${kebabName}.component.scss`,
-        component.scss
-      );
+    const componentName = this.selectedComponent.componentName || 'component';
+    const kebabName = this.toKebabCase(componentName);
+    
+    // Download typescript file
+    this.createAndDownloadFile(
+      `${kebabName}.component.ts`, 
+      this.selectedComponent.typescript || '// No TypeScript code available'
+    );
+    
+    // Download HTML file
+    this.createAndDownloadFile(
+      `${kebabName}.component.html`, 
+      this.selectedComponent.html || '<!-- No HTML code available -->'
+    );
+    
+    // Download SCSS file
+    this.createAndDownloadFile(
+      `${kebabName}.component.scss`, 
+      this.selectedComponent.scss || '/* No SCSS code available */'
+    );
+    
+    this.snackBar.open('All files downloaded', 'Dismiss', {
+      duration: 3000
     });
     
-    this.snackBar.open('All files downloaded', 'Dismiss', { duration: 3000 });
     this.announceToScreenReader('All component files downloaded');
   }
   
-  public toKebabCase(str: string): string {
-    return str.replace(/([a-z0-9])([A-Z])/g, '$1-$2').toLowerCase();
-  }
-  
-  private downloadFile(filename: string, content: string): void {
-    const element = document.createElement('a');
-    element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(content));
-    element.setAttribute('download', filename);
-    
-    element.style.display = 'none';
-    document.body.appendChild(element);
-    element.click();
-    document.body.removeChild(element);
-  }
-  
-  announceSelectedTab(event: MatTabChangeEvent): void {
-    const tabLabels = ['TypeScript', 'HTML', 'SCSS'];
-    this.announceToScreenReader(`${tabLabels[event.index]} tab selected`);
+  private createAndDownloadFile(filename: string, content: string): void {
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   }
   
   private announceToScreenReader(message: string): void {
     this.screenReaderMessage = message;
+    
+    // Clear after a delay to prevent stacking announcements
     setTimeout(() => {
       this.screenReaderMessage = '';
     }, 1000);
   }
   
-  ngOnDestroy(): void {
-    if (this.singleLanguageEditor) {
-      this.singleLanguageEditor.dispose();
+  onComponentChange(): void {
+    if (this.generatedCode && this.generatedCode.components.length > this.selectedComponentIndex) {
+      this.selectedComponent = this.generatedCode.components[this.selectedComponentIndex];
+      this.updateEditor();
+      this.announceToScreenReader(`Selected component: ${this.selectedComponent.componentName}`);
     }
-    
-    if (this.singleEditor) {
-      this.singleEditor.dispose();
+  }
+  
+  ngOnDestroy(): void {
+    if (this.editor) {
+      this.editor.dispose();
+      this.editor = null;
     }
   }
 } 

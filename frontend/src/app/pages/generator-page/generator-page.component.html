@@ -1,6 +1,6 @@
-<div class="container mx-auto p-4 flex flex-col min-h-[calc(100vh-64px-64px)]">
+<div class="container mx-auto p-4 flex flex-col min-h-[calc(100vh-64px-64px)] gap-6">
   <!-- Page Header -->
-  <header class="mb-6 flex justify-between items-center">
+  <header class="mb-4 flex justify-between items-center">
     <div>
       <h1 class="text-2xl md:text-3xl font-bold mb-2">
         Angular Component Generator
@@ -16,8 +16,10 @@
       (click)="resetUI()"
       [disabled]="isLoading"
       matTooltip="Reset all inputs and results"
+      aria-label="Reset all inputs and results"
     >
-      <mat-icon>refresh</mat-icon> Reset
+      <mat-icon aria-hidden="true">refresh</mat-icon>
+      <span>Reset</span>
     </button>
   </header>
 
@@ -39,9 +41,10 @@
   }
 
   <!-- Main Layout -->
-  <div class="grid grid-cols-1 xl:grid-cols-12 gap-6 flex-grow">
+  <div class="grid grid-cols-12 gap-6 code-editor-row">
+    <!-- Top Row -->
     <!-- Left Panel: Input Options -->
-    <div class="col-span-1 xl:col-span-3 flex flex-col gap-6">
+    <div class="col-span-12 md:col-span-3 flex flex-col">
       <mat-card class="flex-grow">
         <mat-card-header>
           <mat-card-title>Input</mat-card-title>
@@ -73,18 +76,8 @@
       </mat-card>
     </div>
 
-    <!-- Middle Panel: Preview -->
-    <div class="col-span-1 xl:col-span-4 flex flex-col gap-6">
-      <div class="preview-container flex-grow">
-        <app-preview-pane
-          [generatedCode]="generatedCode"
-        >
-        </app-preview-pane>
-      </div>
-    </div>
-
-    <!-- Right Panel: Generated Code -->
-    <div class="col-span-1 xl:col-span-5 flex flex-col gap-6">
+    <!-- Right Panel: Generated Code (Expanded) -->
+    <div class="col-span-12 md:col-span-9 flex flex-col">
       <mat-card class="flex-grow code-container">
         <mat-card-header>
           <mat-card-title>
@@ -100,94 +93,14 @@
         </mat-card-header>
         <mat-card-content class="flex-grow p-0">
           @if (generatedCode) {
-          <mat-tab-group class="h-full">
-            <mat-tab label="TypeScript">
-              <div class="p-2 code-tab-content">
-                <div class="flex justify-between items-center mb-2">
-                  @if (generatedCode.components.length > 0) {
-                  <span class="text-sm"
-                    >{{
-                      generatedCode.components[0].componentName
-                    }}.component.ts</span
-                  >
-                  }
-                  <button
-                    mat-icon-button
-                    matTooltip="Copy TypeScript code"
-                    (click)="copyCode('ts')"
-                  >
-                    <mat-icon>content_copy</mat-icon>
-                  </button>
-                </div>
-                <app-code-viewer
-                  [showSingleEditor]="generatedCode.components.length === 1"
-                  [code]="generatedCode.components[0].typescript"
-                  [language]="'typescript'"
-                  [fileName]="generatedCode.components[0].componentName + '.component.ts'"
-                  [generatedCode]="generatedCode"
-                >
-                </app-code-viewer>
-              </div>
-            </mat-tab>
-
-            <mat-tab label="HTML">
-              <div class="p-2 code-tab-content">
-                <div class="flex justify-between items-center mb-2">
-                  @if (generatedCode.components.length > 0) {
-                  <span class="text-sm"
-                    >{{
-                      generatedCode.components[0].componentName
-                    }}.component.html</span
-                  >
-                  }
-                  <button
-                    mat-icon-button
-                    matTooltip="Copy HTML code"
-                    (click)="copyCode('html')"
-                  >
-                    <mat-icon>content_copy</mat-icon>
-                  </button>
-                </div>
-                <app-code-viewer
-                  [showSingleEditor]="generatedCode.components.length === 1"
-                  [code]="generatedCode.components[0].html"
-                  [language]="'html'"
-                  [fileName]="generatedCode.components[0].componentName + '.component.html'"
-                  [generatedCode]="generatedCode"
-                >
-                </app-code-viewer>
-              </div>
-            </mat-tab>
-
-            <mat-tab label="SCSS">
-              <div class="p-2 code-tab-content">
-                <div class="flex justify-between items-center mb-2">
-                  @if (generatedCode.components.length > 0) {
-                  <span class="text-sm"
-                    >{{
-                      generatedCode.components[0].componentName
-                    }}.component.scss</span
-                  >
-                  }
-                  <button
-                    mat-icon-button
-                    matTooltip="Copy SCSS code"
-                    (click)="copyCode('scss')"
-                  >
-                    <mat-icon>content_copy</mat-icon>
-                  </button>
-                </div>
-                <app-code-viewer
-                  [showSingleEditor]="generatedCode.components.length === 1"
-                  [code]="generatedCode.components[0].scss"
-                  [language]="'scss'"
-                  [fileName]="generatedCode.components[0].componentName + '.component.scss'"
-                  [generatedCode]="generatedCode"
-                >
-                </app-code-viewer>
-              </div>
-            </mat-tab>
-          </mat-tab-group>
+          <div class="p-2 code-tab-content">
+            @if (generatedCode.components.length > 0) {
+            <app-code-viewer
+              [generatedCode]="generatedCode"
+            >
+            </app-code-viewer>
+            }
+          </div>
           } @else {
           <div
             class="h-full flex flex-col items-center justify-center text-gray-400"
@@ -199,6 +112,25 @@
             </p>
           </div>
           }
+        </mat-card-content>
+      </mat-card>
+    </div>
+  </div>
+
+  <!-- Bottom Row: Preview -->
+  <div class="grid grid-cols-12 gap-6 preview-row">
+    <div class="col-span-12 flex flex-col">
+      <mat-card class="flex-grow">
+        <mat-card-header>
+          <mat-card-title>Component Preview</mat-card-title>
+        </mat-card-header>
+        <mat-card-content class="preview-card-content">
+          <div class="preview-container">
+            <app-preview-pane
+              [generatedCode]="generatedCode"
+            >
+            </app-preview-pane>
+          </div>
         </mat-card-content>
       </mat-card>
     </div>
@@ -216,6 +148,9 @@
     display: flex;
     flex-direction: column;
     height: 100%;
+    min-height: 700px;
+    position: relative;
+    z-index: 0; /* Create stacking context */
   }
   
   .code-container mat-card-content {
@@ -240,14 +175,80 @@
     height: 100%;
   }
   
-  .preview-container {
-    height: 100%;
-    min-height: 400px;
+  /* Material components need higher z-index to appear above Monaco */
+  :host ::ng-deep .mat-mdc-button,
+  :host ::ng-deep .mat-mdc-icon-button,
+  :host ::ng-deep .mat-mdc-tooltip-panel,
+  :host ::ng-deep .mat-mdc-select-panel,
+  :host ::ng-deep .mat-mdc-snack-bar-container {
+    z-index: 100000 !important; /* Higher than Monaco editor widgets */
   }
   
-  @media (max-width: 1280px) {
-    .preview-container {
-      min-height: 400px;
+  /* Ensure all interactive elements are on top */
+  button, mat-icon, mat-select {
+    position: relative;
+    z-index: 10000;
+  }
+  
+  /* Monaco editor and widgets position */
+  :host ::ng-deep .monaco-editor-background,
+  :host ::ng-deep .monaco-editor,
+  :host ::ng-deep .monaco-editor .overflow-guard {
+    z-index: 1;
+  }
+  
+  /* Monaco editor widgets need to be below Material tooltips but above editor */
+  :host ::ng-deep .monaco-editor-overlaymessage,
+  :host ::ng-deep .monaco-editor .suggest-widget,
+  :host ::ng-deep .monaco-editor .context-view {
+    z-index: 50000 !important;
+  }
+  
+  .preview-container {
+    min-height: 300px;
+    width: 100%;
+  }
+  
+  .preview-card-content {
+    padding: 16px;
+  }
+  
+  /* Make sure the content column takes most of the viewport height */
+  .container {
+    min-height: calc(100vh - 128px);
+    display: flex;
+    flex-direction: column;
+  }
+  
+  /* Make the code editor row take most of the available space */
+  .code-editor-row {
+    flex: 1;
+    min-height: 700px;
+    display: flex;
+  }
+  
+  /* Make the preview row take less space */
+  .preview-row {
+    flex: 0 0 auto;
+  }
+  
+  /* Accessibility enhancements */
+  :host ::ng-deep .mat-mdc-button:focus-visible,
+  :host ::ng-deep .mat-mdc-icon-button:focus-visible {
+    outline: 2px solid #3f51b5;
+    outline-offset: 2px;
+  }
+  
+  /* High contrast mode support */
+  @media (forced-colors: active) {
+    :host ::ng-deep .monaco-editor,
+    :host ::ng-deep .file-tree-container {
+      border: 1px solid CanvasText;
+    }
+    
+    :host ::ng-deep .mat-mdc-button:focus-visible,
+    :host ::ng-deep .mat-mdc-icon-button:focus-visible {
+      outline: 2px solid CanvasText;
     }
   }
 </style>

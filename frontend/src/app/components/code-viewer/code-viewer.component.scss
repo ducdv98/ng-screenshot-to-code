@@ -1,10 +1,14 @@
-// Editor heights
+// Editor container
 .editor-container {
-  height: 400px;
+  height: 100%;
+  min-height: 400px;
   width: 100%;
-  border: 1px solid rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(0, 0, 0, 0.12);
   border-radius: 4px;
+  overflow: hidden;
   flex-grow: 1;
+  position: relative;
+  z-index: 1;
 }
 
 // Make the tabs fill the available space
@@ -18,6 +22,25 @@
   height: 100%;
   display: flex;
   flex-direction: column;
+  position: relative;
+}
+
+// Action bar with buttons
+.action-bar {
+  position: relative;
+  z-index: 10000;
+}
+
+// Button wrapper
+.actions-wrapper {
+  position: relative;
+  z-index: 10000;
+}
+
+// Individual action buttons
+.action-button {
+  position: relative;
+  z-index: 10000; 
 }
 
 // Fix the tab content container height to fill available space
@@ -38,20 +61,37 @@
     border-radius: 4px;
   }
   
-  // Make sure tab content takes full height
-  .mat-mdc-tab-body-content {
-    display: flex;
-    flex-direction: column;
+  // Ensure editor takes full available space
+  .monaco-editor,
+  .monaco-editor-background,
+  .monaco-editor .inputarea.ime-input {
     height: 100%;
+  }
+  
+  // Make sure Monaco widgets don't block Material components
+  .monaco-editor-overlaymessage,
+  .monaco-editor .suggest-widget,
+  .monaco-editor .context-view {
+    z-index: 5000 !important;
+  }
+  
+  // Material components should be on top
+  .mat-mdc-tooltip-panel,
+  .mat-mdc-select-panel,
+  .mat-mdc-menu-panel,
+  .mat-mdc-dialog-container,
+  .mat-mdc-snack-bar-container {
+    z-index: 100000 !important;
   }
 }
 
 // Component selector styling
 .component-select {
   width: 100%;
-  min-width: 200px;
+  min-width: 120px;
   font-size: 14px;
-  margin-left: 8px;
+  position: relative;
+  z-index: 10000;
   
   ::ng-deep .mat-mdc-select-trigger {
     height: 36px;
@@ -71,4 +111,87 @@
       max-width: 250px;
     }
   }
+}
+
+.editor-with-tree {
+  display: flex;
+  flex-direction: row;
+  height: calc(100% - 48px);
+  position: relative;
+}
+
+.file-tree-container {
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
+  background-color: #1e1e1e;
+  border-radius: 4px 0 0 4px;
+  position: relative;
+  z-index: 10;
+}
+
+.mat-tree {
+  background: transparent;
+}
+
+.file-icon {
+  margin-right: 4px;
+  color: #9da5b4;
+}
+
+.node-text {
+  font-size: 14px;
+  color: #d4d4d4;
+}
+
+.active-file {
+  background-color: rgba(63, 81, 181, 0.3);
+  font-weight: 500;
+}
+
+mat-tree-node {
+  min-height: 32px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  position: relative;
+  z-index: 10;
+  
+  &:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+  }
+  
+  &:focus-visible {
+    outline: 2px solid #3f51b5;
+    outline-offset: -2px;
+  }
+}
+
+// File type icons colors
+mat-tree-node .file-icon {
+  &[aria-label="code"] {
+    color: #6a9ae6; // Brighter blue for TypeScript
+  }
+  
+  &[aria-label="html"] {
+    color: #e87a55; // Brighter orange for HTML
+  }
+  
+  &[aria-label="style"] {
+    color: #c78ce9; // Brighter purple for SCSS
+  }
+}
+
+.mat-icon-rtl-mirror {
+  font-size: 18px;
+  color: #9da5b4;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
 } 

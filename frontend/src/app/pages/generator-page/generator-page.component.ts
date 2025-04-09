@@ -128,36 +128,17 @@ export class GeneratorPageComponent {
     });
   }
   
-  copyCode(type: 'ts' | 'html' | 'scss'): void {
-    if (!this.generatedCode) return;
-    
-    // Get the first component
-    const component = this.generatedCode.components[0];
-    let content = '';
-    
-    switch (type) {
-      case 'ts':
-        content = component.typescript;
-        break;
-      case 'html':
-        content = component.html;
-        break;
-      case 'scss':
-        content = component.scss;
-        break;
+  /**
+   * Copy code to clipboard based on type
+   */
+  copyCode(type?: string): void {
+    if (!this.generatedCode || !this.generatedCode.components || this.generatedCode.components.length === 0) {
+      return;
     }
-    
-    navigator.clipboard.writeText(content)
-      .then(() => {
-        this.snackBar.open('Code copied to clipboard', 'Dismiss', {
-          duration: 3000
-        });
-      })
-      .catch(error => {
-        console.error('Failed to copy code', error);
-        this.snackBar.open('Failed to copy code', 'Dismiss', {
-          duration: 3000
-        });
-      });
+
+    // Let the code-viewer component handle copying
+    this.snackBar.open('Use the copy button in the code viewer', 'Dismiss', {
+      duration: 3000,
+    });
   }
 } 
