@@ -209,7 +209,43 @@ class CodeGenerator:
             color_section = f"""
 Contextual Hints - Color Palette:
 Use these colors extracted from the image as a starting point for your design: [{color_list}]
-Apply these colors to appropriate elements to maintain visual consistency with the original design.
+Apply these colors to appropriate elements using Angular Material's theming system and Tailwind CSS color utilities.
+For Material components, use these as custom theme colors when appropriate.
+For non-Material elements, use Tailwind's color utilities with these values.
+"""
+        
+        # Analyze description for UI structure
+        ui_structure_hints = ""
+        if any(term in description.lower() for term in ["form", "input", "field", "submit", "validation"]):
+            ui_structure_hints += """
+UI Structure Hint - Form Detected:
+Implement proper Angular reactive forms with FormControl/FormGroup.
+Add appropriate validation with meaningful error messages.
+Include submit/cancel buttons with proper loading states.
+"""
+            
+        if any(term in description.lower() for term in ["list", "table", "grid", "items", "collection"]):
+            ui_structure_hints += """
+UI Structure Hint - Data Collection Detected:
+Implement optimal rendering strategy for collection data.
+Use *ngFor with trackBy function for performance.
+Consider virtualization for large datasets using @angular/cdk/scrolling.
+"""
+            
+        if any(term in description.lower() for term in ["card", "panel", "container", "section"]):
+            ui_structure_hints += """
+UI Structure Hint - Card/Panel Layout Detected:
+Use mat-card for semantic card layouts with appropriate sections.
+Implement responsive card grid using Tailwind's grid utilities.
+Add appropriate motion with Angular animations if applicable.
+"""
+            
+        if any(term in description.lower() for term in ["navigation", "menu", "sidebar", "drawer", "tabs"]):
+            ui_structure_hints += """
+UI Structure Hint - Navigation Pattern Detected:
+Use appropriate Material navigation components (mat-toolbar, mat-drawer, mat-tabs).
+Implement responsive behavior using Tailwind breakpoint utilities.
+Ensure keyboard navigability and proper ARIA roles.
 """
         
         # Check if description contains component instances
@@ -217,12 +253,13 @@ Apply these colors to appropriate elements to maintain visual consistency with t
         if "Component Instances Found:" in description:
             component_section = """
 Component Instances:
-The Figma design contains component instances which should be reflected in the HTML.
-For each component instance mentioned, add an HTML comment above the corresponding element with the format:
-<!-- Figma Component: ComponentName -->
-
-Additionally, add a data attribute to the element: data-figma-component="ComponentName"
-For example: <div data-figma-component="ButtonPrimary" class="...">...</div>
+The Figma design contains component instances which should be reflected in the component architecture.
+Follow these guidelines for component composition:
+1. Create separate Angular components for each logical UI section
+2. Implement parent-child communication using @Input/@Output where appropriate
+3. Ensure each component has a single responsibility
+4. Use content projection with ng-content for flexible component templates
+5. Implement proper change detection strategy for performance optimization
 """
         
         # Define few-shot examples for structured JSON output format with components array
@@ -235,21 +272,27 @@ For a todo list UI with header, input form, and list of tasks, the output would 
   "components": [
     {
       "componentName": "todo-list",
-      "typescript": "import { Component } from '@angular/core';\n\n@Component({\n  selector: 'app-todo-list',\n  standalone: true,\n  imports: [TodoFormComponent, TodoItemComponent],\n  templateUrl: './todo-list.component.html',\n  styleUrl: './todo-list.component.scss'\n})\nexport class TodoListComponent {\n  todos: any[] = [\n    { title: 'Learn Angular', completed: true },\n    { title: 'Build an app', completed: false }\n  ];\n\n  addTodo(title: string) {\n    this.todos.push({ title, completed: false });\n  }\n\n  toggleComplete(index: number) {\n    this.todos[index].completed = !this.todos[index].completed;\n  }\n\n  deleteTodo(index: number) {\n    this.todos.splice(index, 1);\n  }\n}",
-      "html": "<div class=\"todo-container\">\n  <h1 class=\"text-2xl font-bold mb-4\">Todo List</h1>\n  <app-todo-form (addTodo)=\"addTodo($event)\"></app-todo-form>\n  <app-todo-item\n    *ngFor=\"let todo of todos; let i = index\"\n    [todo]=\"todo\"\n    (toggleComplete)=\"toggleComplete(i)\"\n    (deleteTodo)=\"deleteTodo(i)\">\n  </app-todo-item>\n</div>",
-      "scss": ".todo-container {\n  @apply max-w-md mx-auto mt-8 p-6 bg-white rounded-lg shadow-md;\n}"
+      "typescript": "import { Component, signal } from '@angular/core';\nimport { TodoFormComponent } from './todo-form/todo-form.component';\nimport { TodoItemComponent } from './todo-item/todo-item.component';\nimport { Todo } from './todo.model';\n\n@Component({\n  selector: 'app-todo-list',\n  standalone: true,\n  imports: [TodoFormComponent, TodoItemComponent],\n  templateUrl: './todo-list.component.html',\n  styleUrl: './todo-list.component.scss'\n})\nexport class TodoListComponent {\n  todos = signal<Todo[]>([\n    { id: '1', title: 'Learn Angular', completed: true },\n    { id: '2', title: 'Build an app', completed: false }\n  ]);\n\n  addTodo(title: string) {\n    this.todos.update(currentTodos => [\n      ...currentTodos,\n      { id: crypto.randomUUID(), title, completed: false }\n    ]);\n  }\n\n  toggleComplete(id: string) {\n    this.todos.update(currentTodos => \n      currentTodos.map(todo => \n        todo.id === id ? { ...todo, completed: !todo.completed } : todo\n      )\n    );\n  }\n\n  deleteTodo(id: string) {\n    this.todos.update(currentTodos => \n      currentTodos.filter(todo => todo.id !== id)\n    );\n  }\n}",
+      "html": "<section class=\"todo-container\">\n  <h1 class=\"text-2xl font-bold mb-4\">Todo List</h1>\n  <app-todo-form (addTodo)=\"addTodo($event)\"></app-todo-form>\n  <div class=\"todo-list\">\n    <app-todo-item\n      *ngFor=\"let todo of todos(); trackBy: todoTrackBy\"\n      [todo]=\"todo\"\n      (toggleComplete)=\"toggleComplete(todo.id)\"\n      (deleteTodo)=\"deleteTodo(todo.id)\">\n    </app-todo-item>\n    <p *ngIf=\"todos().length === 0\" class=\"empty-state\">\n      No tasks yet. Add one above!\n    </p>\n  </div>\n</section>",
+      "scss": ".todo-container {\n  @apply max-w-md mx-auto mt-8 p-6 bg-white rounded-lg shadow-md;\n\n  .todo-list {\n    @apply mt-4;\n  }\n\n  .empty-state {\n    @apply text-gray-500 text-center py-4;\n  }\n}"
     },
     {
       "componentName": "todo-form",
-      "typescript": "import { Component, Output, EventEmitter } from '@angular/core';\nimport { FormControl, ReactiveFormsModule, Validators } from '@angular/forms';\nimport { MatInputModule } from '@angular/material/input';\nimport { MatButtonModule } from '@angular/material/button';\nimport { MatIconModule } from '@angular/material/icon';\n\n@Component({\n  selector: 'app-todo-form',\n  standalone: true,\n  imports: [ReactiveFormsModule, MatInputModule, MatButtonModule, MatIconModule],\n  templateUrl: './todo-form.component.html',\n  styleUrl: './todo-form.component.scss'\n})\nexport class TodoFormComponent {\n  @Output() addTodo = new EventEmitter<string>();\n  todoInput = new FormControl('', [Validators.required]);\n\n  submit() {\n    if (this.todoInput.valid && this.todoInput.value) {\n      this.addTodo.emit(this.todoInput.value);\n      this.todoInput.reset();\n    }\n  }\n}",
-      "html": "<form (ngSubmit)=\"submit()\" class=\"todo-form\">\n  <mat-form-field appearance=\"outline\" class=\"w-full\">\n    <mat-label>Add Todo</mat-label>\n    <input matInput [formControl]=\"todoInput\" placeholder=\"What needs to be done?\">\n    <button matSuffix mat-icon-button type=\"submit\" [disabled]=\"!todoInput.valid\">\n      <mat-icon>add</mat-icon>\n    </button>\n  </mat-form-field>\n</form>",
+      "typescript": "import { Component, Output, EventEmitter } from '@angular/core';\nimport { FormControl, ReactiveFormsModule, Validators } from '@angular/forms';\nimport { MatInputModule } from '@angular/material/input';\nimport { MatButtonModule } from '@angular/material/button';\nimport { MatIconModule } from '@angular/material/icon';\n\n@Component({\n  selector: 'app-todo-form',\n  standalone: true,\n  imports: [ReactiveFormsModule, MatInputModule, MatButtonModule, MatIconModule],\n  templateUrl: './todo-form.component.html',\n  styleUrl: './todo-form.component.scss'\n})\nexport class TodoFormComponent {\n  @Output() addTodo = new EventEmitter<string>();\n  todoInput = new FormControl('', [Validators.required, Validators.minLength(3)]);\n\n  submit() {\n    if (this.todoInput.valid && this.todoInput.value) {\n      this.addTodo.emit(this.todoInput.value);\n      this.todoInput.reset();\n      this.todoInput.markAsPristine();\n    }\n  }\n\n  get errorMessage(): string {\n    if (this.todoInput.hasError('required')) {\n      return 'Task description is required';\n    }\n    if (this.todoInput.hasError('minlength')) {\n      return 'Task description must be at least 3 characters';\n    }\n    return '';\n  }\n}",
+      "html": "<form (ngSubmit)=\"submit()\" class=\"todo-form\">\n  <mat-form-field appearance=\"outline\" class=\"w-full\">\n    <mat-label>Add Todo</mat-label>\n    <input matInput [formControl]=\"todoInput\" placeholder=\"What needs to be done?\">\n    <mat-error *ngIf=\"todoInput.invalid\">{{ errorMessage }}</mat-error>\n    <button matSuffix mat-icon-button type=\"submit\" [disabled]=\"!todoInput.valid\" aria-label=\"Add todo\">\n      <mat-icon>add</mat-icon>\n    </button>\n  </mat-form-field>\n</form>",
       "scss": ".todo-form {\n  @apply mb-4;\n}"
     },
     {
       "componentName": "todo-item",
-      "typescript": "import { Component, Input, Output, EventEmitter } from '@angular/core';\nimport { NgClass, NgIf } from '@angular/common';\nimport { MatCheckboxModule } from '@angular/material/checkbox';\nimport { MatButtonModule } from '@angular/material/button';\nimport { MatIconModule } from '@angular/material/icon';\n\n@Component({\n  selector: 'app-todo-item',\n  standalone: true,\n  imports: [NgClass, NgIf, MatCheckboxModule, MatButtonModule, MatIconModule],\n  templateUrl: './todo-item.component.html',\n  styleUrl: './todo-item.component.scss'\n})\nexport class TodoItemComponent {\n  @Input() todo: any;\n  @Output() toggleComplete = new EventEmitter<void>();\n  @Output() deleteTodo = new EventEmitter<void>();\n}",
-      "html": "<div class=\"todo-item\">\n  <mat-checkbox\n    [checked]=\"todo.completed\"\n    (change)=\"toggleComplete.emit()\"\n    color=\"primary\">\n    <span [ngClass]=\"{'line-through': todo.completed}\">{{ todo.title }}</span>\n  </mat-checkbox>\n  <button mat-icon-button (click)=\"deleteTodo.emit()\">\n    <mat-icon>delete</mat-icon>\n  </button>\n</div>",
-      "scss": ".todo-item {\n  @apply flex justify-between items-center p-2 border-b last:border-b-0;\n  \n  mat-checkbox {\n    @apply flex-grow;\n  }\n}"
+      "typescript": "import { Component, Input, Output, EventEmitter, signal } from '@angular/core';\nimport { NgClass, NgIf } from '@angular/common';\nimport { MatCheckboxModule } from '@angular/material/checkbox';\nimport { MatButtonModule } from '@angular/material/button';\nimport { MatIconModule } from '@angular/material/icon';\nimport { Todo } from '../todo.model';\n\n@Component({\n  selector: 'app-todo-item',\n  standalone: true,\n  imports: [NgClass, NgIf, MatCheckboxModule, MatButtonModule, MatIconModule],\n  templateUrl: './todo-item.component.html',\n  styleUrl: './todo-item.component.scss'\n})\nexport class TodoItemComponent {\n  @Input({ required: true }) todo!: Todo;\n  @Output() toggleComplete = new EventEmitter<void>();\n  @Output() deleteTodo = new EventEmitter<void>();\n  isHovered = signal(false);\n  \n  setHovered(state: boolean): void {\n    this.isHovered.set(state);\n  }\n}",
+      "html": "<div class=\"todo-item\" \n     (mouseenter)=\"setHovered(true)\" \n     (mouseleave)=\"setHovered(false)\">\n  <mat-checkbox\n    [checked]=\"todo.completed\"\n    (change)=\"toggleComplete.emit()\"\n    color=\"primary\">\n    <span [ngClass]=\"{'line-through text-gray-500': todo.completed}\">{{ todo.title }}</span>\n  </mat-checkbox>\n  <button mat-icon-button \n          (click)=\"deleteTodo.emit()\" \n          [class.visible]=\"isHovered()\" \n          aria-label=\"Delete todo\">\n    <mat-icon>delete</mat-icon>\n  </button>\n</div>",
+      "scss": ".todo-item {\n  @apply flex justify-between items-center p-2 border-b last:border-b-0;\n  \n  mat-checkbox {\n    @apply flex-grow;\n  }\n\n  button {\n    @apply opacity-0 transition-opacity duration-200;\n    \n    &.visible {\n      @apply opacity-100;\n    }\n  }\n\n  &:hover button {\n    @apply opacity-100;\n  }\n}"
+    },
+    {
+      "componentName": "todo.model",
+      "typescript": "export interface Todo {\n  id: string;\n  title: string;\n  completed: boolean;\n}",
+      "html": "",
+      "scss": ""
     }
   ]
 }
@@ -262,9 +305,9 @@ For a simpler UI that doesn't need to be split into multiple components:
   "components": [
     {
       "componentName": "profile-card",
-      "typescript": "import { Component } from '@angular/core';\nimport { MatButtonModule } from '@angular/material/button';\nimport { MatCardModule } from '@angular/material/card';\nimport { MatIconModule } from '@angular/material/icon';\n\n@Component({\n  selector: 'app-profile-card',\n  standalone: true,\n  imports: [MatCardModule, MatButtonModule, MatIconModule],\n  templateUrl: './profile-card.component.html',\n  styleUrl: './profile-card.component.scss'\n})\nexport class ProfileCardComponent {\n  profile = {\n    name: 'John Doe',\n    title: 'Software Engineer',\n    avatar: 'assets/avatar.jpg',\n    stats: [\n      { label: 'Posts', value: '142' },\n      { label: 'Followers', value: '562' },\n      { label: 'Following', value: '231' }\n    ]\n  };\n}",
-      "html": "<mat-card class=\"profile-card\">\n  <div class=\"profile-header\">\n    <img [src]=\"profile.avatar\" alt=\"Profile picture\" class=\"avatar\">\n    <mat-card-title>{{ profile.name }}</mat-card-title>\n    <mat-card-subtitle>{{ profile.title }}</mat-card-subtitle>\n  </div>\n  \n  <div class=\"profile-stats\">\n    <div class=\"stat-item\" *ngFor=\"let stat of profile.stats\">\n      <div class=\"stat-value\">{{ stat.value }}</div>\n      <div class=\"stat-label\">{{ stat.label }}</div>\n    </div>\n  </div>\n  \n  <mat-card-actions align=\"end\">\n    <button mat-button color=\"primary\">FOLLOW</button>\n    <button mat-button>MESSAGE</button>\n  </mat-card-actions>\n</mat-card>",
-      "scss": ".profile-card {\n  @apply max-w-xs mx-auto overflow-hidden;\n  \n  .profile-header {\n    @apply flex flex-col items-center p-6;\n    \n    .avatar {\n      @apply w-24 h-24 rounded-full object-cover mb-4;\n    }\n  }\n  \n  .profile-stats {\n    @apply flex justify-between px-6 py-4 bg-gray-50;\n    \n    .stat-item {\n      @apply flex flex-col items-center;\n      \n      .stat-value {\n        @apply text-xl font-bold;\n      }\n      \n      .stat-label {\n        @apply text-sm text-gray-600;\n      }\n    }\n  }\n}"
+      "typescript": "import { Component, signal } from '@angular/core';\nimport { MatButtonModule } from '@angular/material/button';\nimport { MatCardModule } from '@angular/material/card';\nimport { MatIconModule } from '@angular/material/icon';\nimport { MatBadgeModule } from '@angular/material/badge';\nimport { NgFor } from '@angular/common';\n\ninterface ProfileStat {\n  label: string;\n  value: string;\n}\n\n@Component({\n  selector: 'app-profile-card',\n  standalone: true,\n  imports: [MatCardModule, MatButtonModule, MatIconModule, MatBadgeModule, NgFor],\n  templateUrl: './profile-card.component.html',\n  styleUrl: './profile-card.component.scss'\n})\nexport class ProfileCardComponent {\n  isFollowing = signal(false);\n  profile = signal({\n    name: 'John Doe',\n    title: 'Software Engineer',\n    avatar: 'assets/avatar.jpg',\n    stats: [\n      { label: 'Posts', value: '142' },\n      { label: 'Followers', value: '562' },\n      { label: 'Following', value: '231' }\n    ] as ProfileStat[]\n  });\n\n  toggleFollow(): void {\n    this.isFollowing.update(current => !current);\n    \n    // In a real app, you would call a service here\n    if (this.isFollowing()) {\n      // Update follower count when following\n      this.updateFollowerCount(1);\n    } else {\n      // Update follower count when unfollowing\n      this.updateFollowerCount(-1);\n    }\n  }\n  \n  private updateFollowerCount(change: number): void {\n    this.profile.update(current => {\n      const updatedStats = current.stats.map(stat => \n        stat.label === 'Followers' \n          ? { ...stat, value: (parseInt(stat.value) + change).toString() }\n          : stat\n      );\n      \n      return {\n        ...current,\n        stats: updatedStats\n      };\n    });\n  }\n}",
+      "html": "<mat-card class=\"profile-card\">\n  <div class=\"profile-header\">\n    <img [src]=\"profile().avatar\" alt=\"Profile picture\" class=\"avatar\">\n    <mat-card-title>{{ profile().name }}</mat-card-title>\n    <mat-card-subtitle>{{ profile().title }}</mat-card-subtitle>\n  </div>\n  \n  <div class=\"profile-stats\">\n    <div class=\"stat-item\" *ngFor=\"let stat of profile().stats\">\n      <div class=\"stat-value\">{{ stat.value }}</div>\n      <div class=\"stat-label\">{{ stat.label }}</div>\n    </div>\n  </div>\n  \n  <mat-card-actions align=\"end\">\n    <button mat-button color=\"primary\" (click)=\"toggleFollow()\">\n      <mat-icon>{{ isFollowing() ? 'person_remove' : 'person_add' }}</mat-icon>\n      {{ isFollowing() ? 'UNFOLLOW' : 'FOLLOW' }}\n    </button>\n    <button mat-button>\n      <mat-icon>message</mat-icon>\n      MESSAGE\n    </button>\n  </mat-card-actions>\n</mat-card>",
+      "scss": ".profile-card {\n  @apply max-w-xs mx-auto overflow-hidden;\n  \n  .profile-header {\n    @apply flex flex-col items-center p-6;\n    \n    .avatar {\n      @apply w-24 h-24 rounded-full object-cover mb-4 border-2 border-primary;\n    }\n  }\n  \n  .profile-stats {\n    @apply flex justify-between px-6 py-4 bg-gray-50 dark:bg-gray-800;\n    \n    .stat-item {\n      @apply flex flex-col items-center;\n      \n      .stat-value {\n        @apply text-xl font-bold;\n      }\n      \n      .stat-label {\n        @apply text-sm text-gray-600 dark:text-gray-300;\n      }\n    }\n  }\n  \n  mat-card-actions button {\n    @apply flex items-center gap-1;\n    \n    mat-icon {\n      @apply text-base;\n    }\n  }\n}"
     }
   ]
 }
@@ -277,56 +320,85 @@ For a simpler UI that doesn't need to be split into multiple components:
 You are an expert Angular developer specializing in Material Design and Tailwind CSS with extensive experience in generating high-quality, production-ready Angular components.
 
 ## Goal
-Analyze the provided UI description and generate Angular component(s) that accurately implement the described interface. If the UI is complex enough to warrant multiple components, split it logically into parent and child components.
+Analyze the provided UI description and generate Angular component(s) that accurately implement the described interface. Split complex UIs into logical parent and child components for better maintainability and reusability.
 
-## Technology Stack & Constraints
-- Angular v19+ with standalone components API
+## Technology Stack Requirements
+- Angular v19+ with standalone component architecture
 - Angular Material v17+ (MDC-based components)
-- Tailwind CSS (exclusively for styling layout, spacing, typography, colors)
-- No custom CSS frameworks or utilities beyond Angular Material and Tailwind
-- Generated components MUST use the latest Angular features (signals API, standalone architecture)
-- Follow strict TypeScript type safety - no 'any' types unless absolutely necessary
+- Tailwind CSS for layout, spacing, typography, and colors
+- Signal-based state management (use Angular's signals API)
+- TypeScript with strict typing (no 'any' types except when absolutely necessary)
+- Reactive forms with validation (for form components)
+- Angular CDK for advanced UI behaviors when needed
 
 ## Configuration Assumptions
-- A standard Angular project is already set up with:
-  - Angular Material properly configured with typography and theme
-  - Tailwind CSS configured with the default color palette
-  - Angular animations enabled via provideAnimationsAsync()
-  - A bootstrapped standalone application
+- Angular project with standalone bootstrapping
+- Angular Material properly configured with typography and theme
+- Tailwind CSS configured with the default color palette
+- Form controls using Angular Material's form field components
+- Animations enabled via provideAnimationsAsync()
 
-## Design Description
+## UI Description
 {description}
 
 {color_section}
+{ui_structure_hints}
 {component_section}
 
-## Component Requirements
-- Use Angular Material components for interactive elements (buttons, inputs, cards, etc.)
-- Apply Tailwind utility classes for layout, spacing, and styling
-- Ensure components are responsive using Tailwind's responsive modifiers
-- Use semantic HTML and ensure accessibility compliance
-- Implement proper component composition if you split into multiple components
-- Include appropriate Angular Material icons when needed
-- Support dark mode using Angular Material's theming system
+## Technical Implementation Requirements
+1. **Structure & Architecture**
+   - Follow single responsibility principle for each component
+   - Use appropriate component composition with parent-child relationships
+   - Create TypeScript interfaces for data models and strong typing
+   - Use Angular's signal-based reactivity instead of BehaviorSubject/Observable where possible
 
-## Reasoning Process
-Before you generate the final code, analyze the UI description and explicitly reason about:
-1. The overall component structure needed
-2. Whether this UI should be implemented as a single component or multiple components
-3. How components should interact with each other (if multiple)
-4. The appropriate Angular Material components to use
-5. The Tailwind classes needed for layout and styling
+2. **UI Components & Styling**
+   - Use Angular Material components for interactive elements (inputs, buttons, cards, etc.)
+   - Apply Tailwind utility classes for layout, spacing, colors, and typography
+   - Ensure responsive design using Tailwind's responsive modifiers
+   - Follow Material Design guidelines for component usage
+   - Implement proper dark mode support using both Material theming and Tailwind
+
+3. **Accessibility & Best Practices**
+   - Use semantic HTML elements (headings, sections, etc.)
+   - Include proper ARIA attributes for custom interactions
+   - Ensure keyboard navigability for interactive elements
+   - Add meaningful alt text for images and icons
+   - Implement focus management for modal dialogs or custom widgets
+
+4. **Performance Considerations**
+   - Add trackBy functions for *ngFor directives
+   - Use OnPush change detection where appropriate
+   - Optimize component template expressions to avoid unnecessary calculations
+   - Consider virtualization for large lists using Angular CDK
+
+## Component Implementation Analysis
+Before writing code, explicitly reason about these aspects:
+
+1. Overall component structure needed for this UI
+2. Data flow and state management approach
+3. Appropriate Material components to use
+4. How to structure the component hierarchy
+5. Where to apply reactive forms or animations
+6. How to split complex components into smaller parts
 
 ## Output Format
 Your response MUST be a JSON object containing a "components" array. Each component in the array must have:
 - componentName: Kebab-case name for the component (e.g., "data-table", "user-profile")
-- typescript: Complete TypeScript code including imports, component decorator, and class definition
-- html: Complete HTML template
-- scss: Complete SCSS styles
+- typescript: Complete TypeScript code including imports, component decorator, class definition with signals
+- html: Complete HTML template with proper bindings and event handlers
+- scss: Complete SCSS styles with Tailwind utilities
 
 {few_shot_examples}
 
-Remember to make your components fully interactive and visually accurate to the description provided.
+## Schema Validation Requirements
+Ensure your generated code follows these rules:
+- All component TypeScript must include proper imports 
+- Component decorators must specify standalone: true and import any dependencies
+- Signals must be used for reactive state management
+- Type safety must be maintained throughout
+- HTML templates must contain proper bindings and directives
+- SCSS should leverage Tailwind utilities via @apply where appropriate
 """
         
         return prompt
