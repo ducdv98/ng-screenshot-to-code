@@ -332,111 +332,234 @@ Remember to make your components fully interactive and visually accurate to the 
         return prompt
     
     async def _generate_with_openai(self, description: str) -> Dict[str, Any]:
-        """Generate code using OpenAI."""
-        prompt = self._create_prompt(description)
+        """
+        Generate Angular component code using OpenAI.
         
-        response = self.openai_client.chat.completions.create(
-            model="gpt-4",  # Using GPT-4 for code generation (could be different from vision model)
-            messages=[
-                {
-                    "role": "system", 
-                    "content": "You are an expert Angular developer who specializes in creating components with Angular Material and TailwindCSS. Generate clean, organized code that follows Angular best practices."
-                },
-                {"role": "user", "content": prompt}
-            ],
-            max_tokens=4000
-        )
-        
-        return self._parse_ai_response(response.choices[0].message.content)
+        Args:
+            description: The UI description to generate code for
+            
+        Returns:
+            Dictionary containing the generated code components
+        """
+        try:
+            # Create an appropriate prompt for OpenAI
+            prompt = self._create_prompt(description)
+            
+            # Call OpenAI API
+            response = self.openai_client.chat.completions.create(
+                model=settings.OPENAI_MODEL,
+                messages=[
+                    {"role": "system", "content": "You are an expert Angular developer who specializes in creating components from UI descriptions."},
+                    {"role": "user", "content": prompt}
+                ],
+                max_tokens=4000
+            )
+            
+            # Extract content from the response
+            content = response.choices[0].message.content
+            
+            # Parse and validate the response
+            try:
+                return self._parse_ai_response(content)
+            except ValueError as e:
+                print(f"Validation error with OpenAI response: {str(e)}")
+                # If the parser detected invalid JSON format, try a simpler fallback structure
+                return self._generate_fallback_component(str(e))
+                
+        except Exception as e:
+            print(f"Error generating code with OpenAI: {str(e)}")
+            return self._generate_fallback_component(f"OpenAI API error: {str(e)}")
     
     async def _generate_with_anthropic(self, description: str) -> Dict[str, Any]:
-        """Generate code using Anthropic."""
-        prompt = self._create_prompt(description)
+        """
+        Generate Angular component code using Anthropic's Claude.
         
-        response = self.anthropic_client.messages.create(
-            model="claude-3-opus-20240229",  # Could be different from vision model
-            max_tokens=4000,
-            messages=[
-                {"role": "user", "content": prompt}
-            ],
-            system="You are an expert Angular developer who specializes in creating components with Angular Material and TailwindCSS. Generate clean, organized code that follows Angular best practices."
-        )
-        
-        return self._parse_ai_response(response.content[0].text)
-        
+        Args:
+            description: The UI description to generate code for
+            
+        Returns:
+            Dictionary containing the generated code components
+        """
+        try:
+            # Create an appropriate prompt for Anthropic
+            prompt = self._create_prompt(description)
+            
+            # Call Anthropic API
+            response = self.anthropic_client.messages.create(
+                model=settings.ANTHROPIC_MODEL,
+                max_tokens=4000,
+                messages=[
+                    {"role": "user", "content": prompt}
+                ]
+            )
+            
+            # Extract content from the response
+            content = response.content[0].text
+            
+            # Parse and validate the response
+            try:
+                return self._parse_ai_response(content)
+            except ValueError as e:
+                print(f"Validation error with Anthropic response: {str(e)}")
+                # If the parser detected invalid JSON format, try a simpler fallback structure
+                return self._generate_fallback_component(str(e))
+                
+        except Exception as e:
+            print(f"Error generating code with Anthropic: {str(e)}")
+            return self._generate_fallback_component(f"Anthropic API error: {str(e)}")
+    
     async def _generate_with_gemini(self, description: str, color_hints: list = None) -> Dict[str, Any]:
         """
-        Generate Angular component code using Google's Gemini API.
+        Generate Angular component code using Google's Gemini.
         
         Args:
             description: The UI description to generate code for
             color_hints: Optional list of colors extracted from the uploaded image
             
         Returns:
-            Dictionary containing the component TypeScript, HTML, and SCSS code
+            Dictionary containing the generated code components
         """
-        # Format prompt with description and color hints
-        prompt = self._create_prompt(description, color_hints)
-        
-        # Get Gemini model
-        model = genai.GenerativeModel(
-            self.gemini_model,
-            # Flash 1.0 provides better code generation
-            # Adjust parameters for code quality & completeness
-            generation_config={"temperature": 0.2, "top_p": 0.95, "top_k": 40}
-        )
-        
         try:
+            # Get the Gemini model with optimized settings
+            model = genai.GenerativeModel(
+                self.gemini_model,
+                # Safety settings could be configured here if needed
+            )
+            
+            # Create detailed prompt with color hints
+            prompt = self._create_prompt(description, color_hints)
+            
             # Process with Gemini
             response = model.generate_content(prompt)
             
-            # Extract the content
+            # Extract the text response
             response_text = response.text
             
-            # Parse the AI response JSON
-            code_parts = self._parse_ai_response(response_text)
-            
-            # Return the parsed components or a fallback format
-            if 'components' in code_parts and isinstance(code_parts['components'], list) and len(code_parts['components']) > 0:
-                # Use the first component as the main component for backward compatibility
-                main_component = code_parts['components'][0]
-                
-                result = {
-                    "component_ts": main_component.get("typescript", ""),
-                    "component_html": main_component.get("html", ""),
-                    "component_scss": main_component.get("scss", ""),
-                    "component_name": main_component.get("componentName", "ui-component"),
-                    "components": code_parts['components']  # Return all components for potential later use
-                }
-                return result
-            else:
-                # Fallback to old format (single component) if no components array is found
-                return {
-                    "component_ts": code_parts.get("component_ts", ""),
-                    "component_html": code_parts.get("component_html", ""),
-                    "component_scss": code_parts.get("component_scss", ""),
-                    "component_name": code_parts.get("component_name", "ui-component")
-                }
+            # Parse and validate the response
+            try:
+                return self._parse_ai_response(response_text)
+            except ValueError as e:
+                print(f"Validation error with Gemini response: {str(e)}")
+                # Retry with a simpler prompt if validation fails
+                return await self._retry_gemini_generation(description, str(e))
                 
         except Exception as e:
             print(f"Error generating code with Gemini: {str(e)}")
-            # Return a basic fallback component in case of error
-            return {
-                "component_ts": "// Error generating component code",
-                "component_html": "<!-- Error generating component HTML -->",
-                "component_scss": "/* Error generating component styles */",
-                "component_name": "error-component"
-            }
+            return self._generate_fallback_component(f"Gemini API error: {str(e)}")
+            
+    async def _retry_gemini_generation(self, description: str, error_message: str) -> Dict[str, Any]:
+        """
+        Retry code generation with Gemini using a simplified prompt.
+        
+        Args:
+            description: The UI description to generate code for
+            error_message: The error message from the previous attempt
+            
+        Returns:
+            Dictionary containing the generated code components
+        """
+        try:
+            # Get the Gemini model
+            model = genai.GenerativeModel(self.gemini_model)
+            
+            # Create a simplified prompt focused on a single component
+            simplified_prompt = f"""
+Previous attempt failed with error: {error_message}
+
+Please generate a SINGLE Angular component based on this description:
+{description}
+
+The response should be in this format:
+```json
+{{
+  "components": [
+    {{
+      "componentName": "component-name",
+      "typescript": "// TypeScript code here",
+      "html": "<!-- HTML code here -->",
+      "scss": "/* SCSS code here */"
+    }}
+  ]
+}}
+```
+Ensure all fields are properly formatted strings and the structure is valid JSON.
+"""
+            
+            # Process with Gemini
+            response = model.generate_content(simplified_prompt)
+            
+            # Extract and parse the response
+            try:
+                return self._parse_ai_response(response.text)
+            except ValueError as e:
+                print(f"Validation still failed after retry: {str(e)}")
+                return self._generate_fallback_component("Failed to generate valid component after retry")
+                
+        except Exception as e:
+            print(f"Error in retry generation: {str(e)}")
+            return self._generate_fallback_component(f"Retry generation error: {str(e)}")
+    
+    def _generate_fallback_component(self, error_message: str) -> Dict[str, Any]:
+        """
+        Generate a fallback component when validation fails.
+        
+        Args:
+            error_message: The error message to include in the fallback component
+            
+        Returns:
+            Dictionary containing a basic fallback component
+        """
+        sanitized_error = error_message.replace('"', "'").replace('\n', ' ')
+        
+        component = {
+            "componentName": "error-component",
+            "typescript": f"""import {{ Component }} from '@angular/core';
+
+@Component({{
+  selector: 'app-error-component',
+  standalone: true,
+  templateUrl: './error-component.component.html',
+  styleUrl: './error-component.component.scss'
+}})
+export class ErrorComponent {{
+  errorMessage = "{sanitized_error}";
+}}""",
+            "html": f"""<div class="error-container">
+  <h2>Component Generation Failed</h2>
+  <p>{{{{ errorMessage }}}}</p>
+  <p>Please try again with a different image or description.</p>
+</div>""",
+            "scss": """.error-container {
+  border: 2px solid #f44336;
+  border-radius: 8px;
+  padding: 16px;
+  margin: 16px;
+  background-color: #ffebee;
+  color: #b71c1c;
+  font-family: sans-serif;
+}"""
+        }
+        
+        return {
+            "components": [component],
+            "component_ts": component["typescript"],
+            "component_html": component["html"],
+            "component_scss": component["scss"],
+            "component_name": component["componentName"]
+        }
     
     def _parse_ai_response(self, response_text: str) -> Dict[str, Any]:
         """
-        Parse the AI response text to extract the code blocks.
+        Parse and validate the AI response text to extract the code blocks.
         
         Args:
             response_text: The raw text response from the AI
         
         Returns:
             Dictionary with the extracted component code or components array
+        
+        Raises:
+            ValueError: If the response format is invalid or missing required data
         """
         import json
         import re
@@ -452,9 +575,69 @@ Remember to make your components fully interactive and visually accurate to the 
                 # Parse the JSON object
                 parsed_json = json.loads(cleaned_json)
                 
-                # Return the parsed JSON as is - it should contain either the old format
-                # or the new format with "components" array
-                return parsed_json
+                # Validate the parsed JSON structure
+                if not isinstance(parsed_json, dict):
+                    raise ValueError("Response JSON is not an object")
+                
+                # Validate components array if present
+                if "components" in parsed_json:
+                    if not isinstance(parsed_json["components"], list):
+                        raise ValueError("'components' field must be an array")
+                    
+                    if not parsed_json["components"]:
+                        raise ValueError("'components' array cannot be empty")
+                    
+                    # Validate each component in the array
+                    for i, component in enumerate(parsed_json["components"]):
+                        if not isinstance(component, dict):
+                            raise ValueError(f"Component at index {i} is not an object")
+                        
+                        # Check for required fields in each component
+                        required_fields = ["componentName", "typescript", "html", "scss"]
+                        for field in required_fields:
+                            if field not in component:
+                                raise ValueError(f"Component at index {i} is missing required field: '{field}'")
+                            
+                            if not isinstance(component[field], str):
+                                raise ValueError(f"Component at index {i}: field '{field}' must be a string")
+                        
+                        # Basic TypeScript syntax validation
+                        if "typescript" in component and "@Component" not in component["typescript"]:
+                            raise ValueError(f"Component at index {i}: TypeScript code missing @Component decorator")
+                        
+                        # Basic HTML validation
+                        if "html" in component and "<" not in component["html"]:
+                            raise ValueError(f"Component at index {i}: HTML appears to be invalid")
+                    
+                    # Create the result structure with the validated components
+                    main_component = parsed_json["components"][0]
+                    return {
+                        "component_ts": main_component.get("typescript", ""),
+                        "component_html": main_component.get("html", ""),
+                        "component_scss": main_component.get("scss", ""),
+                        "component_name": main_component.get("componentName", "ui-component"),
+                        "components": parsed_json["components"]
+                    }
+                elif all(k in parsed_json for k in ["component_ts", "component_html", "component_scss", "component_name"]):
+                    # Legacy format validation - single component
+                    for field in ["component_ts", "component_html", "component_scss", "component_name"]:
+                        if not isinstance(parsed_json[field], str):
+                            raise ValueError(f"Field '{field}' must be a string")
+                    
+                    # Create a component object in the new components array format for consistency
+                    component = {
+                        "componentName": parsed_json["component_name"],
+                        "typescript": parsed_json["component_ts"],
+                        "html": parsed_json["component_html"],
+                        "scss": parsed_json["component_scss"]
+                    }
+                    
+                    # Return in both formats for backward compatibility
+                    parsed_json["components"] = [component]
+                    return parsed_json
+                else:
+                    raise ValueError("JSON response missing required fields for component generation")
+                
             except json.JSONDecodeError as e:
                 print(f"JSON parsing error: {str(e)}")
         
@@ -468,7 +651,14 @@ Remember to make your components fully interactive and visually accurate to the 
         html_matches = re.findall(component_html_pattern, response_text)
         scss_matches = re.findall(component_scss_pattern, response_text)
         
-        # Extract component name from the TypeScript content if available
+        # Validate that we have at least the typescript and html
+        if not ts_matches:
+            raise ValueError("No TypeScript code found in the AI response")
+        
+        if not html_matches:
+            raise ValueError("No HTML template found in the AI response")
+        
+        # Extract component name from the TypeScript content
         component_name = "ui-component"
         if ts_matches:
             class_pattern = r"export\s+class\s+(\w+)"

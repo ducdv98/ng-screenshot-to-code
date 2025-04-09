@@ -91,6 +91,7 @@ This document outlines the specific tasks required to implement the enhanced AI 
 
 ### Task ID: BE-3
 **Title:** Implement JSON Output Parser & Validation
+**Status:** Completed ✅
 
 **Description:** Develop backend logic to reliably parse and validate the structured JSON response received from the VLM, which contains the generated component(s) data.
 
@@ -103,11 +104,12 @@ This document outlines the specific tasks required to implement the enhanced AI 
     * Check if essential properties (`componentName`, `typescript`, `html`, `scss`) exist for each component.
     * (Optional) Add basic sanity checks for code syntax if feasible.
 4.  Implement error handling for parsing failures or validation errors (e.g., logging errors, returning specific error codes/messages to the frontend).
-5.  Consider implementing fallback logic (e.g., if parsing fails, potentially retry the AI call with a simpler prompt requesting only a single component).
+5.  Implement fallback logic (e.g., if parsing fails, potentially retry the AI call with a simpler prompt requesting only a single component).
 6.  Pass the successfully parsed and validated `components` array data to the frontend.
 
 **Location/Impacted Areas:**
 * `backend/app/services/ai_service.py` (or VLM interaction service)
+* `backend/app/services/code_generator.py` (primary implementation)
 * `backend/app/controllers/` (or API endpoint handling the response)
 
 **Dependencies:** BE-1 (Defines the expected JSON format)
