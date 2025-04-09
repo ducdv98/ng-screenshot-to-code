@@ -3,20 +3,46 @@
   display: block;
 }
 
-// Card and container styling
-mat-card {
-  border-radius: 8px;
-  overflow: hidden;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
+// Custom button classes that work with Material
+.reset-button {
+  @apply rounded shadow-sm transition-all;
   
-  &.code-container {
-    mat-card-content {
-      overflow: hidden;
-      display: flex;
-      flex-direction: column;
-      flex: 1;
+  &:hover {
+    @apply shadow;
+  }
+  
+  &:focus-visible {
+    @apply outline-2 outline-offset-2 outline-primary-500;
+  }
+}
+
+.generate-button {
+  @apply px-8 py-3 text-lg rounded-md shadow-md transition-all;
+  
+  &:hover:not([disabled]) {
+    @apply shadow-lg transform -translate-y-0.5;
+  }
+  
+  &:disabled {
+    @apply opacity-70 cursor-not-allowed;
+  }
+}
+
+// Card styling that integrates with Material
+.generator-card {
+  @apply w-full shadow-md rounded-lg overflow-hidden;
+  
+  ::ng-deep {
+    .mat-mdc-card-header {
+      @apply bg-gray-50 dark:bg-gray-800 p-4;
+    }
+    
+    .mat-mdc-card-title {
+      @apply text-xl text-primary-800 dark:text-primary-300 font-medium;
+    }
+    
+    .mat-mdc-card-subtitle {
+      @apply text-gray-600 dark:text-gray-400;
     }
   }
 }
@@ -50,20 +76,37 @@ mat-card {
 
 // Input tabs styling
 .input-tabs {
-  margin-top: 1rem;
+  @apply mt-4;
+  
+  ::ng-deep {
+    .mat-mdc-tab-header {
+      @apply border-b border-gray-200 dark:border-gray-700;
+    }
+    
+    .mat-mdc-tab {
+      @apply text-gray-700 dark:text-gray-300;
+      
+      &.mdc-tab--active {
+        @apply text-primary-600 dark:text-primary-400;
+      }
+    }
+  }
 }
 
 // Responsive adjustments
 @media (max-width: 1279px) {
-  // Stack layout on smaller screens
-  .preview-container, .code-container {
-    height: 500px;
+  .generator-card {
+    @apply max-h-[600px] overflow-y-auto;
   }
 }
 
 @media (max-width: 767px) {
-  .preview-container, .code-container {
-    height: 400px;
+  .generator-card {
+    @apply max-h-[500px];
+  }
+  
+  .generate-button {
+    @apply w-full;
   }
   
   .code-tab-content app-code-viewer {
@@ -71,9 +114,25 @@ mat-card {
   }
 }
 
+// Accessibility improvements
+:host ::ng-deep {
+  .mat-mdc-button:focus-visible,
+  .mat-mdc-icon-button:focus-visible {
+    @apply outline-2 outline-offset-2 outline-primary-500;
+  }
+  
+  // High contrast mode support
+  @media (forced-colors: active) {
+    .mat-mdc-button:focus-visible,
+    .mat-mdc-icon-button:focus-visible {
+      outline: 2px solid CanvasText;
+    }
+  }
+}
+
 // Use tailwind-style dark mode for future-proofing
 @media (prefers-color-scheme: dark) {
-  mat-card {
+  .generator-card {
     background-color: rgb(31, 41, 55); // Approximate tailwind gray-800
     color: rgb(229, 231, 235); // Approximate tailwind gray-200
   }

@@ -1,0 +1,140 @@
+@use '@angular/material' as mat;
+@use 'sass:map';
+
+// Include the common styles for Angular Material
+@include mat.core();
+
+// Define color palettes based on our Tailwind config
+$primary-palette: (
+  50: #e3f2fd,
+  100: #bbdefb,
+  200: #90caf9,
+  300: #64b5f6,
+  400: #42a5f5,
+  500: #2196f3,
+  600: #1e88e5,
+  700: #1976d2,
+  800: #1565c0,
+  900: #0d47a1,
+  contrast: (
+    50: rgba(0, 0, 0, 0.87),
+    100: rgba(0, 0, 0, 0.87),
+    200: rgba(0, 0, 0, 0.87),
+    300: rgba(0, 0, 0, 0.87),
+    400: rgba(0, 0, 0, 0.87),
+    500: white,
+    600: white,
+    700: white,
+    800: white,
+    900: white,
+  )
+);
+
+$accent-palette: (
+  50: #fff8e1,
+  100: #ffecb3,
+  200: #ffe082,
+  300: #ffd54f,
+  400: #ffca28,
+  500: #ffc107,
+  600: #ffb300,
+  700: #ffa000,
+  800: #ff8f00,
+  900: #ff6f00,
+  contrast: (
+    50: rgba(0, 0, 0, 0.87),
+    100: rgba(0, 0, 0, 0.87),
+    200: rgba(0, 0, 0, 0.87),
+    300: rgba(0, 0, 0, 0.87),
+    400: rgba(0, 0, 0, 0.87),
+    500: rgba(0, 0, 0, 0.87),
+    600: rgba(0, 0, 0, 0.87),
+    700: rgba(0, 0, 0, 0.87),
+    800: white,
+    900: white,
+  )
+);
+
+$warn-palette: (
+  50: #ffebee,
+  100: #ffcdd2,
+  200: #ef9a9a,
+  300: #e57373,
+  400: #ef5350,
+  500: #f44336,
+  600: #e53935,
+  700: #d32f2f,
+  800: #c62828,
+  900: #b71c1c,
+  contrast: (
+    50: rgba(0, 0, 0, 0.87),
+    100: rgba(0, 0, 0, 0.87),
+    200: rgba(0, 0, 0, 0.87),
+    300: rgba(0, 0, 0, 0.87),
+    400: rgba(0, 0, 0, 0.87),
+    500: white,
+    600: white,
+    700: white,
+    800: white,
+    900: white,
+  )
+);
+
+// Define the theme
+$light-theme: mat.define-light-theme((
+  color: (
+    primary: mat.define-palette($primary-palette, 600),
+    accent: mat.define-palette($accent-palette, 500),
+    warn: mat.define-palette($warn-palette, 500),
+  ),
+  typography: mat.define-typography-config(
+    $font-family: 'Roboto, "Helvetica Neue", sans-serif',
+  ),
+  density: 0,
+));
+
+$dark-theme: mat.define-dark-theme((
+  color: (
+    primary: mat.define-palette($primary-palette, 300),
+    accent: mat.define-palette($accent-palette, 300),
+    warn: mat.define-palette($warn-palette, 300),
+  ),
+  typography: mat.define-typography-config(
+    $font-family: 'Roboto, "Helvetica Neue", sans-serif',
+  ),
+  density: 0,
+));
+
+// Apply the light theme by default
+@include mat.all-component-themes($light-theme);
+
+// Apply the dark theme only when the user prefers dark themes
+@media (prefers-color-scheme: dark) {
+  @include mat.all-component-colors($dark-theme);
+}
+
+// Define CSS variables for our theme colors
+:root {
+  // Primary palette
+  --color-primary-50: #{map.get($primary-palette, 50)};
+  --color-primary-100: #{map.get($primary-palette, 100)};
+  --color-primary-200: #{map.get($primary-palette, 200)};
+  --color-primary-300: #{map.get($primary-palette, 300)};
+  --color-primary-400: #{map.get($primary-palette, 400)};
+  --color-primary-500: #{map.get($primary-palette, 500)};
+  --color-primary-600: #{map.get($primary-palette, 600)};
+  --color-primary-700: #{map.get($primary-palette, 700)};
+  --color-primary-800: #{map.get($primary-palette, 800)};
+  --color-primary-900: #{map.get($primary-palette, 900)};
+  
+  // Accent palette
+  --color-accent-500: #{map.get($accent-palette, 500)};
+  
+  // Warn palette
+  --color-warn-500: #{map.get($warn-palette, 500)};
+  
+  // Additional variables for component styling
+  --card-border-radius: 8px;
+  --button-border-radius: 4px;
+  --transition-speed: 0.2s;
+} 

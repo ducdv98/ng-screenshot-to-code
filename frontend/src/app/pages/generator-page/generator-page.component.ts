@@ -1,4 +1,4 @@
-import { Component, ViewChild, inject } from '@angular/core';
+import { Component, ViewChild, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatTabsModule } from '@angular/material/tabs';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
@@ -19,6 +19,11 @@ interface ImageUploadData {
     dominant?: string;
     palette?: string[];
   };
+}
+
+interface ColorHints {
+  dominant?: string;
+  palette?: string[];
 }
 
 @Component({
@@ -46,29 +51,27 @@ export class GeneratorPageComponent {
   @ViewChild(ImageUploaderComponent) private imageUploader?: ImageUploaderComponent;
   @ViewChild(FigmaInputComponent) private figmaInput?: FigmaInputComponent;
   
-  isLoading = false;
-  generatedCode: GeneratedCode | null = null;
-  error: string | null = null;
-  isGenerationComplete = false;
+  // State management with signals
+  isLoading = signal<boolean>(false);
+  generatedCode = signal<GeneratedCode | null>(null);
+  error = signal<string | null>(null);
+  isGenerationComplete = signal<boolean>(false);
   
   // Store the uploaded image or Figma data for later use
-  private uploadedImage: File | null = null;
-  private uploadedColorHints?: {
-    dominant?: string;
-    palette?: string[];
-  };
-  private figmaData: FigmaInput | null = null;
+  private uploadedImage = signal<File | null>(null);
+  private uploadedColorHints = signal<ColorHints | undefined>(undefined);
+  private figmaData = signal<FigmaInput | null>(null);
   
   /**
    * Clears the UI state before starting a new generation
    */
   private clearState(): void {
-    this.error = null;
-    this.generatedCode = null;
-    this.isGenerationComplete = false;
-    this.uploadedImage = null;
-    this.uploadedColorHints = undefined;
-    this.figmaData = null;
+    this.error.set(null);
+    this.generatedCode.set(null);
+    this.isGenerationComplete.set(false);
+    this.uploadedImage.set(null);
+    this.uploadedColorHints.set(undefined);
+    this.figmaData.set(null);
   }
   
   /**
@@ -88,8 +91,8 @@ export class GeneratorPageComponent {
   
   onImageSelected(data: ImageUploadData): void {
     this.clearState();
-    this.uploadedImage = data.file;
-    this.uploadedColorHints = data.colors;
+    this.uploadedImage.set(data.file);
+    this.uploadedColorHints.set(data.colors);
     
     // Log color extraction for debugging
     if (data.colors?.dominant) {
@@ -102,28 +105,28 @@ export class GeneratorPageComponent {
   
   onFigmaSubmitted(figmaInput: FigmaInput): void {
     this.clearState();
-    this.figmaData = figmaInput;
+    this.figmaData.set(figmaInput);
   }
   
   /**
    * Generate and download the Angular project
    */
   generateProject(): void {
-    if (!this.uploadedImage && !this.figmaData) {
-      this.error = 'Please upload an image or provide Figma details first.';
+    if (!this.uploadedImage() && !this.figmaData()) {
+      this.error.set('Please upload an image or provide Figma details first.');
       this.snackBar.open('Error: Please provide input before generating', 'Dismiss', {
         duration: 5000
       });
       return;
     }
     
-    this.isLoading = true;
-    this.error = null;
-    this.isGenerationComplete = false;
+    this.isLoading.set(true);
+    this.error.set(null);
+    this.isGenerationComplete.set(false);
     
-    if (this.uploadedImage) {
+    if (this.uploadedImage()) {
       this.generateFromImage();
-    } else if (this.figmaData) {
+    } else if (this.figmaData()) {
       this.generateFromFigma();
     }
   }
@@ -132,9 +135,12 @@ export class GeneratorPageComponent {
    * Generate project from uploaded image
    */
   private generateFromImage(): void {
-    if (!this.uploadedImage) return;
+    const image = this.uploadedImage();
+    const colorHints = this.uploadedColorHints();
     
-    this.apiService.generateProjectFromImage(this.uploadedImage, this.uploadedColorHints).subscribe({
+    if (!image) return;
+    
+    this.apiService.generateProjectFromImage(image, colorHints).subscribe({
       next: (blobResponse) => {
         this.downloadZipFile(blobResponse);
         this.handleSuccessfulGeneration();
@@ -149,9 +155,11 @@ export class GeneratorPageComponent {
    * Generate project from Figma data
    */
   private generateFromFigma(): void {
-    if (!this.figmaData) return;
+    const figmaInputData = this.figmaData();
     
-    this.apiService.generateProjectFromFigma(this.figmaData).subscribe({
+    if (!figmaInputData) return;
+    
+    this.apiService.generateProjectFromFigma(figmaInputData).subscribe({
       next: (blobResponse) => {
         this.downloadZipFile(blobResponse);
         this.handleSuccessfulGeneration();
@@ -216,8 +224,8 @@ export class GeneratorPageComponent {
    * Handle successful project generation
    */
   private handleSuccessfulGeneration(): void {
-    this.isLoading = false;
-    this.isGenerationComplete = true;
+    this.isLoading.set(false);
+    this.isGenerationComplete.set(true);
     this.snackBar.open('Angular project successfully generated and downloaded!', 'Dismiss', {
       duration: 5000
     });
@@ -228,8 +236,8 @@ export class GeneratorPageComponent {
    */
   private handleGenerationError(err: any, source: string): void {
     console.error(`Error generating project from ${source}:`, err);
-    this.error = `Failed to generate Angular project from ${source}. Please try again.`;
-    this.isLoading = false;
+    this.error.set(`Failed to generate Angular project from ${source}. Please try again.`);
+    this.isLoading.set(false);
     this.snackBar.open('Error: ' + (err.message || `Failed to generate project from ${source}`), 'Dismiss', {
       duration: 5000
     });
