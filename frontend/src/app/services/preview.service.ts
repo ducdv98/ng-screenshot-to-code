@@ -37,12 +37,39 @@ export class PreviewService {
         <script>
           tailwind.config = {
             theme: {
-              extend: {}
+              extend: {
+                colors: {
+                  primary: {
+                    50: '#e8eaf6',
+                    100: '#c5cae9',
+                    200: '#9fa8da',
+                    300: '#7986cb',
+                    400: '#5c6bc0',
+                    500: '#3f51b5',
+                    600: '#3949ab',
+                    700: '#303f9f',
+                    800: '#283593',
+                    900: '#1a237e',
+                  },
+                  accent: {
+                    50: '#fce4ec',
+                    100: '#f8bbd0',
+                    200: '#f48fb1',
+                    300: '#f06292',
+                    400: '#ec407a',
+                    500: '#e91e63',
+                    600: '#d81b60',
+                    700: '#c2185b',
+                    800: '#ad1457',
+                    900: '#880e4f',
+                  }
+                }
+              }
             }
           }
         </script>
         
-        <!-- Angular Material Theme (primary: indigo, accent: pink) -->
+        <!-- Angular Material Theme -->
         <link href="/assets/themes/indigo-pink.css" rel="stylesheet">
         
         <!-- Fallback to CDN if local asset fails -->
@@ -55,6 +82,7 @@ export class PreviewService {
               // Angular Material 19 themes are in @angular/material
               fallbackLink.href = 'https://cdn.jsdelivr.net/npm/@angular/material@19.2.8/core/theming/prebuilt/indigo-pink.css';
               document.head.appendChild(fallbackLink);
+              console.log('Using fallback Angular Material theme from CDN');
             });
           })();
         </script>
@@ -65,15 +93,162 @@ export class PreviewService {
             margin: 0; 
             font-family: Roboto, "Helvetica Neue", sans-serif; 
             padding: 16px;
+            color: rgba(0, 0, 0, 0.87);
+            background: #fafafa;
           }
+          
+          /* Mat Typography classes */
+          .mat-typography {
+            font: 400 14px/20px Roboto, "Helvetica Neue", sans-serif;
+            letter-spacing: normal;
+          }
+          
+          .mat-headline-1 {font-size: 96px; font-weight: 300; letter-spacing: -0.015625em;}
+          .mat-headline-2 {font-size: 60px; font-weight: 300; letter-spacing: -0.0083em;}
+          .mat-headline-3 {font-size: 48px; font-weight: 400; letter-spacing: normal;}
+          .mat-headline-4 {font-size: 34px; font-weight: 400; letter-spacing: 0.0073em;}
+          .mat-headline-5 {font-size: 24px; font-weight: 400; letter-spacing: normal;}
+          .mat-headline-6 {font-size: 20px; font-weight: 500; letter-spacing: 0.0125em;}
+          .mat-subtitle-1 {font-size: 16px; font-weight: 400; letter-spacing: 0.009375em;}
+          .mat-subtitle-2 {font-size: 14px; font-weight: 500; letter-spacing: 0.0071em;}
+          .mat-body-1 {font-size: 14px; font-weight: 400; letter-spacing: 0.0179em;}
+          .mat-body-2 {font-size: 14px; font-weight: 500; letter-spacing: 0.0179em;}
+          .mat-caption {font-size: 12px; font-weight: 400; letter-spacing: 0.0333em;}
           
           /* Material 3 styling helpers */
           .mat-elevation-z1 { box-shadow: 0 2px 1px -1px rgba(0,0,0,.2), 0 1px 1px 0 rgba(0,0,0,.14), 0 1px 3px 0 rgba(0,0,0,.12); }
           .mat-elevation-z2 { box-shadow: 0 3px 1px -2px rgba(0,0,0,.2), 0 2px 2px 0 rgba(0,0,0,.14), 0 1px 5px 0 rgba(0,0,0,.12); }
+          .mat-elevation-z3 { box-shadow: 0 3px 3px -2px rgba(0,0,0,.2), 0 3px 4px 0 rgba(0,0,0,.14), 0 1px 8px 0 rgba(0,0,0,.12); }
           .mat-elevation-z4 { box-shadow: 0 2px 4px -1px rgba(0,0,0,.2), 0 4px 5px 0 rgba(0,0,0,.14), 0 1px 10px 0 rgba(0,0,0,.12); }
+          .mat-elevation-z6 { box-shadow: 0 3px 5px -1px rgba(0,0,0,.2), 0 6px 10px 0 rgba(0,0,0,.14), 0 1px 18px 0 rgba(0,0,0,.12); }
+          .mat-elevation-z8 { box-shadow: 0 5px 5px -3px rgba(0,0,0,.2), 0 8px 10px 1px rgba(0,0,0,.14), 0 3px 14px 2px rgba(0,0,0,.12); }
+          
+          /* Card styles */
+          mat-card, .mat-mdc-card {
+            display: block;
+            position: relative;
+            padding: 16px;
+            border-radius: 4px;
+            background-color: white;
+            color: rgba(0, 0, 0, 0.87);
+            box-shadow: 0 2px 1px -1px rgba(0,0,0,.2), 0 1px 1px 0 rgba(0,0,0,.14), 0 1px 3px 0 rgba(0,0,0,.12);
+          }
+          
+          .mat-mdc-card-header {
+            display: flex;
+            padding: 16px 16px 0;
+          }
+          
+          .mat-mdc-card-title {
+            font-size: 20px;
+            font-weight: 500;
+            margin-bottom: 12px;
+          }
+          
+          .mat-mdc-card-subtitle {
+            font-size: 14px;
+            color: rgba(0, 0, 0, 0.54);
+            margin-bottom: 12px;
+          }
+          
+          .mat-mdc-card-content {
+            padding: 16px;
+            font-size: 14px;
+          }
+          
+          .mat-mdc-card-actions {
+            display: flex;
+            padding: 8px;
+          }
+          
+          /* Button styles */
+          [mat-button], [mat-raised-button], [mat-stroked-button], [mat-flat-button], [mat-icon-button], .mat-mdc-button, .mat-mdc-raised-button, .mat-mdc-stroked-button, .mat-mdc-flat-button, .mat-mdc-icon-button {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 64px;
+            padding: 0 16px;
+            border-radius: 4px;
+            font-family: Roboto, sans-serif;
+            font-size: 14px;
+            font-weight: 500;
+            letter-spacing: 0.0892857143em;
+            height: 36px;
+            margin: 0;
+            overflow: hidden;
+            line-height: 36px;
+            cursor: pointer;
+            transition: box-shadow 280ms cubic-bezier(0.4, 0, 0.2, 1);
+            text-decoration: none;
+            white-space: nowrap;
+            border: none;
+          }
+          
+          [mat-raised-button], .mat-mdc-raised-button {
+            box-shadow: 0 3px 1px -2px rgba(0,0,0,.2), 0 2px 2px 0 rgba(0,0,0,.14), 0 1px 5px 0 rgba(0,0,0,.12);
+          }
+          
+          [mat-stroked-button], .mat-mdc-stroked-button {
+            padding: 0 15px;
+            border: 1px solid rgba(0,0,0,.12);
+            line-height: 34px;
+          }
+          
+          [mat-icon-button], .mat-mdc-icon-button {
+            min-width: 0;
+            padding: 0;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+          }
+          
+          [color="primary"][mat-button], .mat-mdc-button[color="primary"] {
+            color: #3f51b5;
+          }
+          
+          [color="accent"][mat-button], .mat-mdc-button[color="accent"] {
+            color: #e91e63;
+          }
+          
+          [color="warn"][mat-button], .mat-mdc-button[color="warn"] {
+            color: #f44336;
+          }
+          
+          [color="primary"][mat-raised-button], .mat-mdc-raised-button[color="primary"] {
+            background-color: #3f51b5;
+            color: white;
+          }
+          
+          [color="accent"][mat-raised-button], .mat-mdc-raised-button[color="accent"] {
+            background-color: #e91e63;
+            color: white;
+          }
+          
+          [color="warn"][mat-raised-button], .mat-mdc-raised-button[color="warn"] {
+            background-color: #f44336;
+            color: white;
+          }
+          
+          /* Ripple styles */
+          .ripple {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.4);
+            border-radius: 50%;
+            transform: scale(0);
+            animation: ripple-animation 0.6s linear;
+            pointer-events: none;
+          }
+          
+          @keyframes ripple-animation {
+            to {
+              transform: scale(2.5);
+              opacity: 0;
+            }
+          }
           
           /* Material Icons styling */
-          .material-icons {
+          .material-icons, mat-icon {
             font-family: 'Material Icons';
             font-weight: normal;
             font-style: normal;
@@ -87,6 +262,7 @@ export class PreviewService {
             direction: ltr;
             -webkit-font-feature-settings: 'liga';
             -webkit-font-smoothing: antialiased;
+            vertical-align: middle;
           }
           
           /* Material Symbols styling */
@@ -104,6 +280,62 @@ export class PreviewService {
             direction: ltr;
           }
           
+          /* Toolbar styles */
+          mat-toolbar, .mat-toolbar {
+            display: flex;
+            box-sizing: border-box;
+            padding: 0 16px;
+            width: 100%;
+            flex-direction: row;
+            align-items: center;
+            white-space: nowrap;
+            height: 64px;
+            background: #f5f5f5;
+            color: rgba(0, 0, 0, 0.87);
+          }
+          
+          mat-toolbar[color="primary"], .mat-toolbar[color="primary"] {
+            background: #3f51b5;
+            color: white;
+          }
+          
+          mat-toolbar[color="accent"], .mat-toolbar[color="accent"] {
+            background: #e91e63;
+            color: white;
+          }
+          
+          /* Form field styles */
+          mat-form-field, .mat-form-field {
+            display: block;
+            position: relative;
+            margin-bottom: 16px;
+          }
+          
+          .mat-form-field-label {
+            position: absolute;
+            left: 0;
+            top: 0;
+            font-size: 16px;
+            pointer-events: none;
+            transition: transform 0.4s, color 0.4s, font-size 0.4s;
+            color: rgba(0, 0, 0, 0.6);
+          }
+          
+          /* List styles */
+          mat-list, .mat-list {
+            display: block;
+            padding: 8px 0;
+          }
+          
+          mat-list-item, .mat-list-item {
+            display: flex;
+            align-items: center;
+            box-sizing: border-box;
+            height: 48px;
+            padding: 0 16px;
+            position: relative;
+          }
+          
           /* Component specific styles */
           ${generatedCode.component_scss}
         </style>
@@ -117,7 +349,7 @@ export class PreviewService {
         <script>
           document.addEventListener('DOMContentLoaded', function() {
             // Handle ripple effects for buttons with mat-button classes
-            const buttons = document.querySelectorAll('[mat-button], [mat-raised-button], [mat-icon-button]');
+            const buttons = document.querySelectorAll('[mat-button], [mat-raised-button], [mat-stroked-button], [mat-flat-button], [mat-icon-button]');
             buttons.forEach(button => {
               button.addEventListener('click', function(e) {
                 const rect = button.getBoundingClientRect();
@@ -146,6 +378,80 @@ export class PreviewService {
                 icon.classList.add('material-icons');
               }
             });
+            
+            // Simple toggle for mat-expansion-panel
+            document.querySelectorAll('.mat-expansion-panel-header').forEach(header => {
+              header.addEventListener('click', function() {
+                const panel = this.closest('.mat-expansion-panel');
+                if (panel) {
+                  panel.classList.toggle('mat-expanded');
+                  const content = panel.querySelector('.mat-expansion-panel-content');
+                  if (content) {
+                    content.style.display = panel.classList.contains('mat-expanded') ? 'block' : 'none';
+                  }
+                }
+              });
+            });
+            
+            // Handle checkbox toggle
+            document.querySelectorAll('mat-checkbox').forEach(checkbox => {
+              checkbox.addEventListener('click', function() {
+                this.classList.toggle('mat-checkbox-checked');
+                const input = this.querySelector('input[type="checkbox"]');
+                if (input) {
+                  input.checked = !input.checked;
+                }
+              });
+            });
+            
+            // Handle radio button toggle
+            document.querySelectorAll('mat-radio-button').forEach(radio => {
+              radio.addEventListener('click', function() {
+                const name = this.getAttribute('name');
+                if (name) {
+                  document.querySelectorAll(`mat-radio-button[name="${name}"]`).forEach(btn => {
+                    btn.classList.remove('mat-radio-checked');
+                  });
+                }
+                this.classList.add('mat-radio-checked');
+                const input = this.querySelector('input[type="radio"]');
+                if (input) {
+                  input.checked = true;
+                }
+              });
+            });
+            
+            // Basic tab switching
+            document.querySelectorAll('.mat-tab-label').forEach(tab => {
+              tab.addEventListener('click', function() {
+                const tabGroup = this.closest('mat-tab-group');
+                if (!tabGroup) return;
+                
+                // Get index of clicked tab
+                const tabs = Array.from(tabGroup.querySelectorAll('.mat-tab-label'));
+                const index = tabs.indexOf(this);
+                
+                // Remove active class from all tabs and bodies
+                tabs.forEach(t => t.classList.remove('mat-tab-label-active'));
+                
+                // Add active class to clicked tab
+                this.classList.add('mat-tab-label-active');
+                
+                // Show the corresponding content
+                const bodies = tabGroup.querySelectorAll('.mat-tab-body');
+                bodies.forEach((body, i) => {
+                  body.style.display = i === index ? 'block' : 'none';
+                });
+              });
+            });
+            
+            // Activate first tab if exists
+            const firstTab = document.querySelector('.mat-tab-label');
+            if (firstTab) {
+              firstTab.click();
+            }
+            
+            console.log('Static preview initialized with enhanced Material components support');
           });
         </script>
       </body>
