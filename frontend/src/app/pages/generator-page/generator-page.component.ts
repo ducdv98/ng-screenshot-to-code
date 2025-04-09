@@ -134,8 +134,9 @@ export class GeneratorPageComponent {
   private generateFromImage(): void {
     if (!this.uploadedImage) return;
     
-    this.apiService.generateCodeFromImage(this.uploadedImage, this.uploadedColorHints).subscribe({
-      next: (response) => {
+    this.apiService.generateProjectFromImage(this.uploadedImage, this.uploadedColorHints).subscribe({
+      next: (blobResponse) => {
+        this.downloadZipFile(blobResponse);
         this.handleSuccessfulGeneration();
       },
       error: (err) => {
@@ -150,14 +151,36 @@ export class GeneratorPageComponent {
   private generateFromFigma(): void {
     if (!this.figmaData) return;
     
-    this.apiService.generateCodeFromFigma(this.figmaData).subscribe({
-      next: (response) => {
+    this.apiService.generateProjectFromFigma(this.figmaData).subscribe({
+      next: (blobResponse) => {
+        this.downloadZipFile(blobResponse);
         this.handleSuccessfulGeneration();
       },
       error: (err) => {
         this.handleGenerationError(err, 'Figma');
       }
     });
+  }
+
+  /**
+   * Initiates download of the ZIP file using the browser's download mechanism
+   */
+  private downloadZipFile(blob: Blob): void {
+    // Create a blob URL for the ZIP file
+    const url = URL.createObjectURL(blob);
+    
+    // Create a temporary anchor element to trigger the download
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'generated_angular_project.zip';
+    
+    // Append to the document, trigger the download, and clean up
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    // Revoke the blob URL to free up resources
+    setTimeout(() => URL.revokeObjectURL(url), 100);
   }
   
   /**

@@ -163,6 +163,7 @@ This document details the tasks required to pivot the project towards generating
 
 ### Task ID: FPG-FE-2
 **Title:** Implement Frontend API Call and File Download Handling
+**Status:** COMPLETED ✅
 
 **Description:** Update the frontend API service call to expect a file blob response and implement logic in the component to trigger the browser's file download mechanism.
 
