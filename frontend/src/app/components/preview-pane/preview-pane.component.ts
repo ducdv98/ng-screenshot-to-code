@@ -45,6 +45,7 @@ export class PreviewPaneComponent implements OnChanges, OnDestroy {
   
   // Error tracking
   previewError = false;
+  errorMessage = ''; // Added to store specific error messages
 
   // Always use CodeSandbox for enhanced version
   useInteractivePreview = true;
@@ -54,6 +55,10 @@ export class PreviewPaneComponent implements OnChanges, OnDestroy {
   
   // URL for external CodeSandbox project (used for fullscreen)
   private codeSandboxUrl: string | null = null;
+  
+  // Maximum number of retries for CodeSandbox
+  private maxRetries = 2;
+  private retryCount = 0;
 
   constructor(
     private sanitizer: DomSanitizer,
@@ -63,6 +68,13 @@ export class PreviewPaneComponent implements OnChanges, OnDestroy {
   }
   
   ngOnChanges(changes: SimpleChanges): void {
+    // Reset retry count when new code is generated
+    if ((changes['generatedCodeV2'] && this.generatedCodeV2) || 
+        (changes['generatedCode'] && this.generatedCode)) {
+      this.retryCount = 0;
+      this.errorMessage = '';
+    }
+    
     // Check for V2 format first
     if (changes['generatedCodeV2'] && this.generatedCodeV2) {
       this.isUsingV2Format = true;
@@ -82,20 +94,19 @@ export class PreviewPaneComponent implements OnChanges, OnDestroy {
   
   private updatePreview(): void {
     try {
+      // Set loading state
+      this.isPreviewLoading = true;
+      
       // Reset error state
       this.previewError = false;
       
-      // For V2 format, always use CodeSandbox
-      if (this.isUsingV2Format) {
-        this.useInteractivePreview = true;
-        this.updateCodeSandboxPreview();
+      // Both formats now use the same direct preview approach
+      if (this.isUsingV2Format && this.generatedCodeV2) {
+        this.updateDirectPreview();
+      } else if (this.generatedCode) {
+        this.updateIframePreview();
       } else {
-        // Legacy format can toggle between iframe and CodeSandbox
-        if (this.useInteractivePreview) {
-          this.updateCodeSandboxPreview();
-        } else {
-          this.updateIframePreview();
-        }
+        throw new Error('No generated code available');
       }
       
       // Mark preview as initialized
@@ -103,61 +114,96 @@ export class PreviewPaneComponent implements OnChanges, OnDestroy {
     } catch (error) {
       console.error('Error updating preview:', error);
       this.previewError = true;
+      this.errorMessage = error instanceof Error ? error.message : 'Unknown error updating preview';
       this.isPreviewLoading = false;
     }
   }
-
+  
   /**
-   * Update the preview using CodeSandbox iframe embedding
+   * Update preview for V2 format using direct HTML
    */
-  private updateCodeSandboxPreview(): void {
-    // Set loading state to true
-    this.isPreviewLoading = true;
+  private updateDirectPreview(): void {
+    if (!this.generatedCodeV2) return;
     
     try {
-      console.log('Preparing CodeSandbox project...');
+      // Get main component
+      const mainComponent = this.generatedCodeV2.components[0];
       
-      let parameters: string;
+      // Generate HTML preview directly
+      const previewHtml = `
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Component Preview - ${mainComponent.componentName}</title>
+          
+          <!-- Material Design Icons -->
+          <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+          
+          <!-- Google Fonts - Roboto -->
+          <link href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap" rel="stylesheet">
+          
+          <!-- Tailwind CSS -->
+          <script src="https://cdn.tailwindcss.com"></script>
+          
+          <!-- Angular Material Theme -->
+          <link href="https://cdn.jsdelivr.net/npm/@angular/material@19.2.0/prebuilt-themes/indigo-pink.css" rel="stylesheet">
+          
+          <style>
+            body { 
+              margin: 0; 
+              font-family: Roboto, "Helvetica Neue", sans-serif; 
+              padding: 16px;
+              color: rgba(0, 0, 0, 0.87);
+              background: #fafafa;
+            }
+            ${mainComponent.scss}
+          </style>
+        </head>
+        <body class="mat-typography">
+          <div id="component-preview" class="mat-app-background">
+            ${mainComponent.html}
+          </div>
+        </body>
+        </html>
+      `;
       
-      if (this.isUsingV2Format && this.generatedCodeV2) {
-        console.log(`Using V2 format with ${this.generatedCodeV2.components.length} components`);
-        
-        // Log component names for debugging
-        this.generatedCodeV2.components.forEach((component, index) => {
-          console.log(`Component ${index+1}: ${component.componentName}`);
-        });
-        
-        // Use V2 format - enhanced multi-component support
-        parameters = this.previewService.prepareCodeSandboxParameters(this.generatedCodeV2);
-      } else if (this.generatedCode) {
-        console.log('Using legacy format');
-        // Use legacy format
-        parameters = this.previewService.prepareCodeSandboxParameters(this.generatedCode);
-      } else {
-        throw new Error('No generated code available');
-      }
+      // Sanitize the HTML and use it for the iframe
+      this.previewSrcDoc = this.sanitizer.bypassSecurityTrustHtml(previewHtml);
       
-      console.log('CodeSandbox parameters prepared, constructing URL...');
-      
-      // Construct the CodeSandbox URL with parameters and options
-      const baseUrl = 'https://codesandbox.io/api/v1/sandboxes/define';
-      const options = 'view=preview&editorsize=0&hidenavigation=1&theme=light&fontsize=14';
-      const fullUrl = `${baseUrl}?${parameters}&${options}`;
-      console.log('CodeSandbox URL prepared:', fullUrl);
-      
-      // Save the URL for opening in full screen
-      this.codeSandboxUrl = fullUrl;
-      
-      // Sanitize the URL for the iframe
-      this.sandboxUrl = this.sanitizer.bypassSecurityTrustResourceUrl(fullUrl);
-      
-      // Set a timeout to hide the loading indicator
+      // Clear loading state after a short delay
       setTimeout(() => {
         this.isPreviewLoading = false;
-      }, 5000);
+      }, 500);
     } catch (error) {
-      console.error('Error creating CodeSandbox project:', error);
+      console.error('Error creating direct preview:', error);
       this.previewError = true;
+      this.errorMessage = error instanceof Error ? error.message : 'Error creating preview';
+      this.isPreviewLoading = false;
+    }
+  }
+  
+  /**
+   * Handle CodeSandbox errors with retry logic and fallback
+   */
+  private handleCodeSandboxError(errorMessage: string): void {
+    console.error('CodeSandbox error:', errorMessage);
+    
+    if (this.retryCount < this.maxRetries) {
+      // Retry with direct preview approach
+      console.log(`Retrying preview (${this.retryCount + 1}/${this.maxRetries})`);
+      this.retryCount++;
+      setTimeout(() => this.updatePreview(), 1000);
+    } else if (!this.isUsingV2Format && this.generatedCode) {
+      // Fall back to simple iframe preview for legacy format
+      console.log('Falling back to simple iframe preview');
+      this.useInteractivePreview = false;
+      this.updateIframePreview();
+    } else {
+      // Show error if all retries failed and no fallback
+      this.previewError = true;
+      this.errorMessage = `Failed to load preview: ${errorMessage}`;
       this.isPreviewLoading = false;
     }
   }
@@ -191,22 +237,33 @@ export class PreviewPaneComponent implements OnChanges, OnDestroy {
           doc.open();
           doc.write(previewHtml);
           doc.close();
+          
+          // Clear any error state
+          this.previewError = false;
+          this.errorMessage = '';
+          this.isPreviewLoading = false;
         }
       } catch (error) {
         console.error('Error updating iframe preview:', error);
         this.previewError = true;
+        this.errorMessage = error instanceof Error ? error.message : 'Error updating iframe preview';
+        this.isPreviewLoading = false;
       }
     }
   }
   
   /**
-   * Toggle between interactive and static preview modes
+   * Toggle between enhanced and simple preview modes
    */
   togglePreviewMode(): void {
+    console.log(`Toggling preview mode from ${this.useInteractivePreview ? 'enhanced' : 'simple'} to ${!this.useInteractivePreview ? 'enhanced' : 'simple'}`);
     this.useInteractivePreview = !this.useInteractivePreview;
-    console.log(`Preview mode set to: ${this.useInteractivePreview ? 'Interactive' : 'Static'}`);
     
-    // Force an update of the preview
+    // Reset error states
+    this.previewError = false;
+    this.errorMessage = '';
+    
+    // With our simplified approach, we just need to refresh the iframe preview
     this.updatePreview();
   }
   
@@ -214,15 +271,90 @@ export class PreviewPaneComponent implements OnChanges, OnDestroy {
    * Refresh the preview
    */
   refreshPreview(): void {
-    this.updatePreview();
+    console.log('Refreshing preview...');
+    // Reset error and loading states
+    this.previewError = false;
+    this.errorMessage = '';
+    this.retryCount = 0;
+    
+    // Clear iframe src if using CodeSandbox
+    if (this.useInteractivePreview && this.codeSandboxContainer?.nativeElement) {
+      this.codeSandboxContainer.nativeElement.src = 'about:blank';
+    }
+    
+    // Short delay to ensure DOM updates before refreshing
+    setTimeout(() => {
+      this.updatePreview();
+    }, 100);
   }
   
   /**
-   * Open the preview in a new window
+   * Open the preview in fullscreen/new tab
    */
   openFullscreen(): void {
-    if (this.codeSandboxUrl) {
-      window.open(this.codeSandboxUrl, '_blank', 'noopener,noreferrer');
+    console.log('Opening fullscreen preview...');
+    
+    try {
+      let previewHtml: string;
+      
+      if (this.isUsingV2Format && this.generatedCodeV2) {
+        // For V2 format, use the first component
+        const mainComponent = this.generatedCodeV2.components[0];
+        
+        // Generate a standalone HTML page
+        previewHtml = `
+          <!DOCTYPE html>
+          <html lang="en">
+          <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Component Preview - ${mainComponent.componentName}</title>
+            
+            <!-- Material Design Icons -->
+            <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+            
+            <!-- Google Fonts - Roboto -->
+            <link href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap" rel="stylesheet">
+            
+            <!-- Tailwind CSS -->
+            <script src="https://cdn.tailwindcss.com"></script>
+            
+            <!-- Angular Material Theme -->
+            <link href="https://cdn.jsdelivr.net/npm/@angular/material@19.2.0/prebuilt-themes/indigo-pink.css" rel="stylesheet">
+            
+            <style>
+              body { 
+                margin: 0; 
+                font-family: Roboto, "Helvetica Neue", sans-serif; 
+                padding: 16px;
+                color: rgba(0, 0, 0, 0.87);
+                background: #fafafa;
+              }
+              ${mainComponent.scss}
+            </style>
+          </head>
+          <body class="mat-typography">
+            <div id="component-preview" class="mat-app-background">
+              ${mainComponent.html}
+            </div>
+          </body>
+          </html>
+        `;
+      } else if (this.generatedCode) {
+        // For legacy format, use the generatePreviewHtml method
+        previewHtml = this.previewService.generatePreviewHtml(this.generatedCode);
+      } else {
+        throw new Error('No preview content available');
+      }
+      
+      // Create a data URI from the HTML
+      const dataUri = `data:text/html;charset=utf-8,${encodeURIComponent(previewHtml)}`;
+      
+      // Open in a new tab
+      window.open(dataUri, '_blank');
+    } catch (error) {
+      console.error('Error opening fullscreen preview:', error);
+      alert('Could not open fullscreen preview. Please try again.');
     }
   }
 } 

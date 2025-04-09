@@ -409,7 +409,7 @@ export class PreviewService {
               radio.addEventListener('click', function() {
                 const name = this.getAttribute('name');
                 if (name) {
-                  document.querySelectorAll(`mat-radio-button[name="${name}"]`).forEach(btn => {
+                  document.querySelectorAll('mat-radio-button[name="' + name + '"]').forEach(btn => {
                     btn.classList.remove('mat-radio-checked');
                   });
                 }
@@ -1008,98 +1008,119 @@ import { FormsModule, ReactiveFormsModule } from '@angular/forms';`;
     // Create files object for CodeSandbox
     const files: Record<string, { content: string }> = {};
     
-    // Process as V2 format if it's a GeneratedCodeV2 object
-    if ('components' in generatedCodeV2) {
-      console.log(`Processing ${generatedCodeV2.components.length} components in V2 format`);
-      generatedCodeV2.components.forEach(c => console.log(` - ${c.componentName}`));
-      
-      // Process each component
-      generatedCodeV2.components.forEach(component => {
-        const kebabName = this.toKebabCase(component.componentName);
+    try {
+      // Process as V2 format if it's a GeneratedCodeV2 object
+      if ('components' in generatedCodeV2) {
+        console.log(`Processing ${generatedCodeV2.components.length} components in V2 format`);
+        generatedCodeV2.components.forEach(c => console.log(` - ${c.componentName}`));
+        
+        // Process each component
+        generatedCodeV2.components.forEach(component => {
+          const kebabName = this.toKebabCase(component.componentName);
+          
+          // Add component TypeScript file
+          files[`src/app/${kebabName}/${kebabName}.component.ts`] = {
+            content: component.typescript
+          };
+          
+          // Add component HTML file
+          files[`src/app/${kebabName}/${kebabName}.component.html`] = {
+            content: component.html
+          };
+          
+          // Add component SCSS file
+          files[`src/app/${kebabName}/${kebabName}.component.scss`] = {
+            content: component.scss
+          };
+        });
+        
+        // Add main component to app.component.ts
+        const mainComponent = generatedCodeV2.components[0];
+        const mainComponentSelector = `app-${this.toKebabCase(mainComponent.componentName)}`;
+        
+        // Add app-routing.module.ts
+        files['src/app/app-routing.module.ts'] = {
+          content: this.generateAppRoutingModule(generatedCodeV2.components)
+        };
+        
+        // Add app.component.ts with references to all components
+        files['src/app/app.component.ts'] = {
+          content: this.generateAppComponent(generatedCodeV2.components)
+        };
+        
+        // Add app.component.html that includes the main component
+        files['src/app/app.component.html'] = {
+          content: `<${mainComponentSelector}></${mainComponentSelector}>`
+        };
+        
+      } else {
+        // Process as legacy format (GeneratedCode)
+        console.log('Processing legacy format component');
+        const legacyCode = generatedCodeV2 as GeneratedCode;
+        const kebabName = this.toKebabCase(legacyCode.component_name);
         
         // Add component TypeScript file
         files[`src/app/${kebabName}/${kebabName}.component.ts`] = {
-          content: component.typescript
+          content: legacyCode.component_ts
         };
         
         // Add component HTML file
         files[`src/app/${kebabName}/${kebabName}.component.html`] = {
-          content: component.html
+          content: legacyCode.component_html
         };
         
         // Add component SCSS file
         files[`src/app/${kebabName}/${kebabName}.component.scss`] = {
-          content: component.scss
+          content: legacyCode.component_scss
         };
-      });
+        
+        // Add app.component.ts with references to the component
+        files['src/app/app.component.ts'] = {
+          content: this.generateAppComponentLegacy(legacyCode)
+        };
+        
+        // Add app.component.html that includes the component
+        files['src/app/app.component.html'] = {
+          content: `<app-${kebabName}></app-${kebabName}>`
+        };
+      }
       
-      // Add main component to app.component.ts
-      const mainComponent = generatedCodeV2.components[0];
-      const mainComponentSelector = `app-${this.toKebabCase(mainComponent.componentName)}`;
+      // Add common boilerplate files
+      this.addBoilerplateFiles(files);
       
-      // Add app-routing.module.ts
-      files['src/app/app-routing.module.ts'] = {
-        content: this.generateAppRoutingModule(generatedCodeV2.components)
+      // Log the files being included
+      console.log('Project files:', Object.keys(files));
+      
+      // Create parameters object with files
+      const parameters = {
+        files
       };
       
-      // Add app.component.ts with references to all components
-      files['src/app/app.component.ts'] = {
-        content: this.generateAppComponent(generatedCodeV2.components)
-      };
-      
-      // Add app.component.html that includes the main component
-      files['src/app/app.component.html'] = {
-        content: `<${mainComponentSelector}></${mainComponentSelector}>`
-      };
-      
-    } else {
-      // Process as legacy format (GeneratedCode)
-      console.log('Processing legacy format component');
-      const legacyCode = generatedCodeV2 as GeneratedCode;
-      const kebabName = this.toKebabCase(legacyCode.component_name);
-      
-      // Add component TypeScript file
-      files[`src/app/${kebabName}/${kebabName}.component.ts`] = {
-        content: legacyCode.component_ts
-      };
-      
-      // Add component HTML file
-      files[`src/app/${kebabName}/${kebabName}.component.html`] = {
-        content: legacyCode.component_html
-      };
-      
-      // Add component SCSS file
-      files[`src/app/${kebabName}/${kebabName}.component.scss`] = {
-        content: legacyCode.component_scss
-      };
-      
-      // Add app.component.ts with references to the component
-      files['src/app/app.component.ts'] = {
-        content: this.generateAppComponentLegacy(legacyCode)
-      };
-      
-      // Add app.component.html that includes the component
-      files['src/app/app.component.html'] = {
-        content: `<app-${kebabName}></app-${kebabName}>`
-      };
+      // Compress and encode parameters for CodeSandbox define API
+      try {
+        const parametersStr = JSON.stringify(parameters);
+        console.log('Parameters JSON string length:', parametersStr.length);
+        
+        // Use LZString compression with error handling
+        const compressedParams = LZString.compressToBase64(parametersStr);
+        console.log('Compressed parameters length:', compressedParams.length);
+        
+        if (!compressedParams) {
+          throw new Error('Compression failed');
+        }
+        
+        // Properly encode for URL
+        return encodeURIComponent(compressedParams);
+      } catch (error) {
+        console.error('Error during compression:', error);
+        // Fallback to simpler encoding if compression fails
+        const simpleParams = JSON.stringify(parameters);
+        return encodeURIComponent(btoa(simpleParams));
+      }
+    } catch (error) {
+      console.error('Error preparing CodeSandbox parameters:', error);
+      throw error;
     }
-    
-    // Add common boilerplate files
-    this.addBoilerplateFiles(files);
-    
-    // Log the files being included
-    console.log('Project files:', Object.keys(files));
-    
-    // Create parameters object with files
-    const parameters = {
-      files
-    };
-    
-    // Compress and encode parameters for CodeSandbox define API
-    const parametersStr = JSON.stringify(parameters);
-    const compressedParams = LZString.compressToBase64(parametersStr);
-    
-    return `parameters=${encodeURIComponent(compressedParams)}`;
   }
 
   /**
