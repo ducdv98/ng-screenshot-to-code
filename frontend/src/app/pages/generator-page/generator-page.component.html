@@ -3,10 +3,10 @@
   <header class="mb-4 flex justify-between items-center">
     <div>
       <h1 class="text-2xl md:text-3xl font-bold mb-2">
-        Angular Component Generator
+        Angular Project Generator
       </h1>
       <p class="text-gray-600">
-        Transform UI designs into Angular components with Material Design and
+        Transform UI designs into complete Angular projects with Material Design and
         TailwindCSS
       </p>
     </div>
@@ -15,8 +15,8 @@
       color="warn"
       (click)="resetUI()"
       [disabled]="isLoading"
-      matTooltip="Reset all inputs and results"
-      aria-label="Reset all inputs and results"
+      matTooltip="Reset all inputs"
+      aria-label="Reset all inputs"
     >
       <mat-icon aria-hidden="true">refresh</mat-icon>
       <span>Reset</span>
@@ -41,197 +41,78 @@
   }
 
   <!-- Main Layout -->
-  <div class="grid grid-cols-12 gap-6 code-editor-row">
-    <!-- Top Row -->
-    <!-- Left Panel: Input Options -->
-    <div class="col-span-12 md:col-span-3 flex flex-col">
-      <mat-card class="flex-grow">
-        <mat-card-header>
-          <mat-card-title>Input</mat-card-title>
-          <mat-card-subtitle
-            >Upload an image or provide Figma details</mat-card-subtitle
-          >
-        </mat-card-header>
-        <mat-card-content>
-          <mat-tab-group class="input-tabs">
-            <!-- Image Upload Tab -->
-            <mat-tab label="Upload Screenshot">
-              <div class="p-4">
-                <app-image-uploader
-                  (fileSelected)="onImageSelected($event)"
-                ></app-image-uploader>
-              </div>
-            </mat-tab>
+  <div class="grid grid-cols-1 gap-6">
+    <!-- Input Panel -->
+    <mat-card class="w-full">
+      <mat-card-header>
+        <mat-card-title>Input</mat-card-title>
+        <mat-card-subtitle>Upload an image or provide Figma details</mat-card-subtitle>
+      </mat-card-header>
+      <mat-card-content>
+        <mat-tab-group class="input-tabs">
+          <!-- Image Upload Tab -->
+          <mat-tab label="Upload Screenshot">
+            <div class="p-4">
+              <app-image-uploader
+                (fileSelected)="onImageSelected($event)"
+              ></app-image-uploader>
+            </div>
+          </mat-tab>
 
-            <!-- Figma Input Tab -->
-            <mat-tab label="Figma Design">
-              <div class="p-4">
-                <app-figma-input
-                  (figmaSubmitted)="onFigmaSubmitted($event)"
-                ></app-figma-input>
-              </div>
-            </mat-tab>
-          </mat-tab-group>
-        </mat-card-content>
-      </mat-card>
+          <!-- Figma Input Tab -->
+          <mat-tab label="Figma Design">
+            <div class="p-4">
+              <app-figma-input
+                (figmaSubmitted)="onFigmaSubmitted($event)"
+              ></app-figma-input>
+            </div>
+          </mat-tab>
+        </mat-tab-group>
+      </mat-card-content>
+    </mat-card>
+
+    <!-- Generate Button Panel -->
+    <div class="w-full flex justify-center my-4">
+      <button
+        mat-raised-button
+        color="primary"
+        size="large"
+        class="px-8 py-3 text-lg"
+        [disabled]="isLoading"
+        (click)="generateProject()"
+      >
+        <mat-icon aria-hidden="true" class="mr-2">file_download</mat-icon>
+        Generate & Download Angular Project
+      </button>
     </div>
 
-    <!-- Right Panel: Generated Code (Expanded) -->
-    <div class="col-span-12 md:col-span-9 flex flex-col">
-      <mat-card class="flex-grow code-container">
-        <mat-card-header>
-          <mat-card-title>
-            <span>Generated Code</span>
-            @if (generatedCode && generatedCode.components.length > 0) {
-            <span class="text-sm text-gray-600 ml-2">
-              ({{ generatedCode.components[0].componentName }}) @if
-              (generatedCode.components.length > 1) { +
-              {{ generatedCode.components.length - 1 }} more }
-            </span>
-            }
-          </mat-card-title>
-        </mat-card-header>
-        <mat-card-content class="flex-grow p-0">
-          @if (generatedCode) {
-          <div class="p-2 code-tab-content">
-            @if (generatedCode.components.length > 0) {
-            <app-code-viewer
-              [generatedCode]="generatedCode"
-            >
-            </app-code-viewer>
-            }
-          </div>
-          } @else {
-          <div
-            class="h-full flex flex-col items-center justify-center text-gray-400"
-          >
-            <mat-icon class="text-8xl mb-4">code</mat-icon>
-            <p class="text-center max-w-md">
-              Generated Angular code will appear here after you upload an image
-              or provide Figma details.
-            </p>
-          </div>
-          }
-        </mat-card-content>
-      </mat-card>
+    <!-- Success Message after generation -->
+    @if (isGenerationComplete) {
+    <div
+      class="bg-green-100 border border-green-400 text-green-700 px-6 py-4 rounded-lg mb-4 flex items-start"
+    >
+      <mat-icon class="mr-3 text-green-500">check_circle</mat-icon>
+      <div>
+        <p class="font-semibold mb-2">Your Angular project was successfully generated!</p>
+        <p class="mb-3">The project includes:</p>
+        <ul class="list-disc ml-6 mb-3">
+          <li>Complete Angular v19+ project structure</li>
+          <li>Angular Material v17+ components</li>
+          <li>Tailwind CSS styling</li>
+          <li>Ready-to-run configuration</li>
+        </ul>
+        <p class="text-sm">To get started, extract the ZIP file and run:</p>
+        <div class="bg-gray-100 p-2 rounded-md font-mono text-sm my-2">
+          npm install<br>
+          ng serve
+        </div>
+      </div>
     </div>
-  </div>
-
-  <!-- Bottom Row: Preview -->
-  <div class="grid grid-cols-12 gap-6 preview-row">
-    <div class="col-span-12 flex flex-col">
-      <mat-card class="flex-grow">
-        <mat-card-header>
-          <mat-card-title>Component Preview</mat-card-title>
-        </mat-card-header>
-        <mat-card-content class="preview-card-content">
-          <div class="preview-container">
-            <app-preview-pane
-              [generatedCode]="generatedCode"
-            >
-            </app-preview-pane>
-          </div>
-        </mat-card-content>
-      </mat-card>
-    </div>
+    }
   </div>
 </div>
 
 <style>
-  .code-tab-content {
-    height: calc(100% - 48px);
-    display: flex;
-    flex-direction: column;
-  }
-  
-  .code-container {
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-    min-height: 700px;
-    position: relative;
-    z-index: 0; /* Create stacking context */
-  }
-  
-  .code-container mat-card-content {
-    flex: 1;
-    overflow: hidden;
-  }
-  
-  /* Make tab group fill available height */
-  :host ::ng-deep .mat-mdc-tab-group {
-    height: 100%;
-  }
-  
-  :host ::ng-deep .mat-mdc-tab-body-wrapper {
-    flex-grow: 1;
-  }
-  
-  :host ::ng-deep .mat-mdc-tab-body.mat-mdc-tab-body-active {
-    height: 100%;
-  }
-  
-  :host ::ng-deep .mat-mdc-tab-body-content {
-    height: 100%;
-  }
-  
-  /* Material components need higher z-index to appear above Monaco */
-  :host ::ng-deep .mat-mdc-button,
-  :host ::ng-deep .mat-mdc-icon-button,
-  :host ::ng-deep .mat-mdc-tooltip-panel,
-  :host ::ng-deep .mat-mdc-select-panel,
-  :host ::ng-deep .mat-mdc-snack-bar-container {
-    z-index: 100000 !important; /* Higher than Monaco editor widgets */
-  }
-  
-  /* Ensure all interactive elements are on top */
-  button, mat-icon, mat-select {
-    position: relative;
-    z-index: 10000;
-  }
-  
-  /* Monaco editor and widgets position */
-  :host ::ng-deep .monaco-editor-background,
-  :host ::ng-deep .monaco-editor,
-  :host ::ng-deep .monaco-editor .overflow-guard {
-    z-index: 1;
-  }
-  
-  /* Monaco editor widgets need to be below Material tooltips but above editor */
-  :host ::ng-deep .monaco-editor-overlaymessage,
-  :host ::ng-deep .monaco-editor .suggest-widget,
-  :host ::ng-deep .monaco-editor .context-view {
-    z-index: 50000 !important;
-  }
-  
-  .preview-container {
-    min-height: 300px;
-    width: 100%;
-  }
-  
-  .preview-card-content {
-    padding: 16px;
-  }
-  
-  /* Make sure the content column takes most of the viewport height */
-  .container {
-    min-height: calc(100vh - 128px);
-    display: flex;
-    flex-direction: column;
-  }
-  
-  /* Make the code editor row take most of the available space */
-  .code-editor-row {
-    flex: 1;
-    min-height: 700px;
-    display: flex;
-  }
-  
-  /* Make the preview row take less space */
-  .preview-row {
-    flex: 0 0 auto;
-  }
-  
   /* Accessibility enhancements */
   :host ::ng-deep .mat-mdc-button:focus-visible,
   :host ::ng-deep .mat-mdc-icon-button:focus-visible {
@@ -241,11 +122,6 @@
   
   /* High contrast mode support */
   @media (forced-colors: active) {
-    :host ::ng-deep .monaco-editor,
-    :host ::ng-deep .file-tree-container {
-      border: 1px solid CanvasText;
-    }
-    
     :host ::ng-deep .mat-mdc-button:focus-visible,
     :host ::ng-deep .mat-mdc-icon-button:focus-visible {
       outline: 2px solid CanvasText;

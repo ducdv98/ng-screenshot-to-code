@@ -9,8 +9,6 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatCardModule } from '@angular/material/card';
 import { ImageUploaderComponent } from '../../components/image-uploader/image-uploader.component';
 import { FigmaInputComponent } from '../../components/figma-input/figma-input.component';
-import { CodeViewerComponent } from '../../components/code-viewer/code-viewer.component';
-import { PreviewPaneComponent } from '../../components/preview-pane/preview-pane.component';
 import { ApiService } from '../../services/api.service';
 import { GeneratedCode } from '../../models/generated-code.model';
 import { FigmaInput } from '../../models/api-request.model';
@@ -36,9 +34,7 @@ interface ImageUploadData {
     MatTooltipModule,
     MatCardModule,
     ImageUploaderComponent,
-    FigmaInputComponent,
-    CodeViewerComponent,
-    PreviewPaneComponent
+    FigmaInputComponent
   ],
   templateUrl: './generator-page.component.html',
   styleUrls: ['./generator-page.component.scss']
@@ -53,6 +49,15 @@ export class GeneratorPageComponent {
   isLoading = false;
   generatedCode: GeneratedCode | null = null;
   error: string | null = null;
+  isGenerationComplete = false;
+  
+  // Store the uploaded image or Figma data for later use
+  private uploadedImage: File | null = null;
+  private uploadedColorHints?: {
+    dominant?: string;
+    palette?: string[];
+  };
+  private figmaData: FigmaInput | null = null;
   
   /**
    * Clears the UI state before starting a new generation
@@ -60,6 +65,10 @@ export class GeneratorPageComponent {
   private clearState(): void {
     this.error = null;
     this.generatedCode = null;
+    this.isGenerationComplete = false;
+    this.uploadedImage = null;
+    this.uploadedColorHints = undefined;
+    this.figmaData = null;
   }
   
   /**
@@ -79,66 +88,98 @@ export class GeneratorPageComponent {
   
   onImageSelected(data: ImageUploadData): void {
     this.clearState();
-    this.isLoading = true;
-    
-    // Extract file and color hints from the uploaded data
-    const { file, colors } = data;
+    this.uploadedImage = data.file;
+    this.uploadedColorHints = data.colors;
     
     // Log color extraction for debugging
-    if (colors?.dominant) {
-      console.log('Dominant color extracted:', colors.dominant);
+    if (data.colors?.dominant) {
+      console.log('Dominant color extracted:', data.colors.dominant);
     }
-    if (colors?.palette?.length) {
-      console.log('Color palette extracted:', colors.palette);
+    if (data.colors?.palette?.length) {
+      console.log('Color palette extracted:', data.colors.palette);
     }
-    
-    this.apiService.generateCodeFromImage(file, colors).subscribe({
-      next: (response) => {
-        this.generatedCode = response as GeneratedCode;
-        this.isLoading = false;
-      },
-      error: (err) => {
-        console.error('Error generating code from image:', err);
-        this.error = 'Failed to generate code. Please try again.';
-        this.isLoading = false;
-        this.snackBar.open('Error: ' + (err.message || 'Failed to generate code'), 'Dismiss', {
-          duration: 5000
-        });
-      }
-    });
   }
   
   onFigmaSubmitted(figmaInput: FigmaInput): void {
     this.clearState();
-    this.isLoading = true;
+    this.figmaData = figmaInput;
+  }
+  
+  /**
+   * Generate and download the Angular project
+   */
+  generateProject(): void {
+    if (!this.uploadedImage && !this.figmaData) {
+      this.error = 'Please upload an image or provide Figma details first.';
+      this.snackBar.open('Error: Please provide input before generating', 'Dismiss', {
+        duration: 5000
+      });
+      return;
+    }
     
-    this.apiService.generateCodeFromFigma(figmaInput).subscribe({
+    this.isLoading = true;
+    this.error = null;
+    this.isGenerationComplete = false;
+    
+    if (this.uploadedImage) {
+      this.generateFromImage();
+    } else if (this.figmaData) {
+      this.generateFromFigma();
+    }
+  }
+  
+  /**
+   * Generate project from uploaded image
+   */
+  private generateFromImage(): void {
+    if (!this.uploadedImage) return;
+    
+    this.apiService.generateCodeFromImage(this.uploadedImage, this.uploadedColorHints).subscribe({
       next: (response) => {
-        this.generatedCode = response as GeneratedCode;
-        this.isLoading = false;
+        this.handleSuccessfulGeneration();
       },
       error: (err) => {
-        console.error('Error generating code from Figma:', err);
-        this.error = 'Failed to generate code from Figma. Please check your inputs and try again.';
-        this.isLoading = false;
-        this.snackBar.open('Error: ' + (err.message || 'Failed to generate code from Figma'), 'Dismiss', {
-          duration: 5000
-        });
+        this.handleGenerationError(err, 'image');
       }
     });
   }
   
   /**
-   * Copy code to clipboard based on type
+   * Generate project from Figma data
    */
-  copyCode(type?: string): void {
-    if (!this.generatedCode || !this.generatedCode.components || this.generatedCode.components.length === 0) {
-      return;
-    }
-
-    // Let the code-viewer component handle copying
-    this.snackBar.open('Use the copy button in the code viewer', 'Dismiss', {
-      duration: 3000,
+  private generateFromFigma(): void {
+    if (!this.figmaData) return;
+    
+    this.apiService.generateCodeFromFigma(this.figmaData).subscribe({
+      next: (response) => {
+        this.handleSuccessfulGeneration();
+      },
+      error: (err) => {
+        this.handleGenerationError(err, 'Figma');
+      }
+    });
+  }
+  
+  /**
+   * Handle successful project generation
+   */
+  private handleSuccessfulGeneration(): void {
+    this.isLoading = false;
+    this.isGenerationComplete = true;
+    this.snackBar.open('Angular project successfully generated and downloaded!', 'Dismiss', {
+      duration: 5000
+    });
+  }
+  
+  /**
+   * Handle project generation error
+   */
+  private handleGenerationError(err: any, source: string): void {
+    console.error(`Error generating project from ${source}:`, err);
+    this.error = `Failed to generate Angular project from ${source}. Please try again.`;
+    this.isLoading = false;
+    this.snackBar.open('Error: ' + (err.message || `Failed to generate project from ${source}`), 'Dismiss', {
+      duration: 5000
     });
   }
 } 
