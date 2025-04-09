@@ -33,23 +33,8 @@ iframe {
   transition: opacity 0.2s ease-in-out;
 }
 
-// StackBlitz container styles
-.stackblitz-container {
-  height: 100%;
-  border: none;
-  min-height: 400px;
-  overflow: hidden;
-  background-color: #f9fafb;
-
-  ::ng-deep iframe {
-    border: none;
-    width: 100%;
-    height: 100%;
-  }
-}
-
-// StackBlitz loading overlay
-.stackblitz-loading-overlay {
+// Loading overlay
+.loading-overlay {
   position: absolute;
   top: 0;
   left: 0;

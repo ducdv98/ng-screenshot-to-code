@@ -1,6 +1,6 @@
 import { Component, Input, OnChanges, SimpleChanges, ViewChild, ElementRef, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
+import { DomSanitizer, SafeHtml, SafeResourceUrl } from '@angular/platform-browser';
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
@@ -10,7 +10,6 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { FormsModule } from '@angular/forms';
 import { PreviewService } from '../../services/preview.service';
 import { GeneratedCode, GeneratedCodeV2 } from '../../models/generated-code.model';
-import sdk, { Project, VM } from '@stackblitz/sdk';
 
 @Component({
   selector: 'app-preview-pane',
@@ -31,11 +30,15 @@ import sdk, { Project, VM } from '@stackblitz/sdk';
 export class PreviewPaneComponent implements OnChanges, OnDestroy {
   @Input() generatedCode: GeneratedCode | null = null;
   @Input() generatedCodeV2: GeneratedCodeV2 | null = null;
+  @Input() isUsingV2Format = false;
   @ViewChild('previewFrame') previewFrame!: ElementRef<HTMLIFrameElement>;
-  @ViewChild('stackblitzContainer') stackblitzContainer!: ElementRef<HTMLDivElement>;
+  @ViewChild('codeSandboxContainer') codeSandboxContainer!: ElementRef<HTMLIFrameElement>;
   
   // Property to hold sanitized HTML for iframe srcdoc
   previewSrcDoc: SafeHtml | null = null;
+  
+  // Property for CodeSandbox iframe URL
+  sandboxUrl: SafeResourceUrl;
   
   // Property to track if preview has been initialized 
   previewInitialized = false;
@@ -43,25 +46,21 @@ export class PreviewPaneComponent implements OnChanges, OnDestroy {
   // Error tracking
   previewError = false;
 
-  // StackBlitz SDK mode toggle - always use StackBlitz for the enhanced version
-  useStackBlitzSdk = true;
+  // Always use CodeSandbox for enhanced version
+  useInteractivePreview = true;
   
-  // Loading state for StackBlitz SDK
-  isStackBlitzLoading = false;
+  // Loading state for CodeSandbox
+  isPreviewLoading = false;
   
-  // Track the StackBlitz VM instance (if available)
-  private stackBlitzVm: VM | null = null;
-  
-  // URL for external StackBlitz project (used for fullscreen)
-  private stackBlitzProjectUrl: string = '';
+  // URL for external CodeSandbox project (used for fullscreen)
+  private codeSandboxUrl: string | null = null;
 
-  // Flag to track which version of generated code we are using
-  private isUsingV2Format = false;
-  
   constructor(
     private sanitizer: DomSanitizer,
     private previewService: PreviewService
-  ) {}
+  ) {
+    this.sandboxUrl = this.sanitizer.bypassSecurityTrustResourceUrl('about:blank');
+  }
   
   ngOnChanges(changes: SimpleChanges): void {
     // Check for V2 format first
@@ -77,14 +76,8 @@ export class PreviewPaneComponent implements OnChanges, OnDestroy {
   }
 
   ngOnDestroy(): void {
-    // Clean up any StackBlitz resources if needed
-    this.stackBlitzVm = null;
-    
-    // Clear container
-    const container = document.getElementById('stackblitz-preview-container');
-    if (container) {
-      container.innerHTML = '';
-    }
+    // Clean up resources if needed
+    this.codeSandboxUrl = null;
   }
   
   private updatePreview(): void {
@@ -92,14 +85,14 @@ export class PreviewPaneComponent implements OnChanges, OnDestroy {
       // Reset error state
       this.previewError = false;
       
-      // For V2 format, always use StackBlitz SDK
+      // For V2 format, always use CodeSandbox
       if (this.isUsingV2Format) {
-        this.useStackBlitzSdk = true;
-        this.updateStackBlitzPreview();
+        this.useInteractivePreview = true;
+        this.updateCodeSandboxPreview();
       } else {
-        // Legacy format can toggle between iframe and StackBlitz
-        if (this.useStackBlitzSdk) {
-          this.updateStackBlitzPreview();
+        // Legacy format can toggle between iframe and CodeSandbox
+        if (this.useInteractivePreview) {
+          this.updateCodeSandboxPreview();
         } else {
           this.updateIframePreview();
         }
@@ -110,104 +103,63 @@ export class PreviewPaneComponent implements OnChanges, OnDestroy {
     } catch (error) {
       console.error('Error updating preview:', error);
       this.previewError = true;
-      this.isStackBlitzLoading = false;
+      this.isPreviewLoading = false;
     }
   }
 
   /**
-   * Update the preview using StackBlitz SDK
+   * Update the preview using CodeSandbox iframe embedding
    */
-  private updateStackBlitzPreview(): void {
+  private updateCodeSandboxPreview(): void {
     // Set loading state to true
-    this.isStackBlitzLoading = true;
+    this.isPreviewLoading = true;
     
-    // Clear any existing content in the container
-    const container = document.getElementById('stackblitz-preview-container');
-    if (container) {
-      container.innerHTML = '';
-    }
-    
-    setTimeout(() => {
-      try {
-        // Create the project object using the appropriate service method
-        let project: Project;
-        let mainComponentFileName: string;
+    try {
+      console.log('Preparing CodeSandbox project...');
+      
+      let parameters: string;
+      
+      if (this.isUsingV2Format && this.generatedCodeV2) {
+        console.log(`Using V2 format with ${this.generatedCodeV2.components.length} components`);
         
-        if (this.isUsingV2Format && this.generatedCodeV2) {
-          // Use V2 format - enhanced multi-component support
-          project = this.previewService.prepareStackBlitzProjectV2(this.generatedCodeV2);
-          
-          // Get first component name for file opening
-          const primaryComponent = this.generatedCodeV2.components[0];
-          const kebabName = this.toKebabCase(primaryComponent.componentName);
-          
-          // For multi-component projects, may want to show app.component first
-          if (this.generatedCodeV2.components.length > 1) {
-            mainComponentFileName = `src/app/app.component.ts`;
-          } else {
-            mainComponentFileName = `src/app/${kebabName}/${kebabName}.component.html`;
-          }
-        } else if (this.generatedCode) {
-          // Use legacy format
-          project = this.previewService.prepareStackBlitzProject(this.generatedCode);
-          mainComponentFileName = `src/app/${this.generatedCode.component_name}/${this.generatedCode.component_name}.component.html`;
-        } else {
-          throw new Error('No generated code available');
-        }
+        // Log component names for debugging
+        this.generatedCodeV2.components.forEach((component, index) => {
+          console.log(`Component ${index+1}: ${component.componentName}`);
+        });
         
-        // Generate a unique project ID to avoid caching issues
-        const projectId = `generated-component-${Date.now()}`;
-        
-        // Use the simpler openProject method if on smaller screens
-        if (window.innerWidth < 768) {
-          // On smaller screens, just open in a new tab
-          sdk.openProject(project, { 
-            newWindow: true,
-            openFile: mainComponentFileName
-          });
-          
-          // Set loading state to false since we're navigating away
-          this.isStackBlitzLoading = false;
-        } else {
-          // On larger screens, embed the project
-          sdk.embedProject('stackblitz-preview-container', project, {
-            height: 500,
-            hideExplorer: false,  // Show explorer for multi-component projects
-            hideNavigation: false,
-            forceEmbedLayout: true,
-            openFile: mainComponentFileName,
-            view: 'preview',
-            clickToLoad: false,
-            terminalHeight: 40 // Add terminal height to allow package installation visibility
-          })
-            .then((vm: VM) => {
-              this.stackBlitzVm = vm;
-              
-              // Try to create a link for fullscreen view
-              try {
-                this.stackBlitzProjectUrl = `https://stackblitz.com/edit?file=${mainComponentFileName}`;
-              } catch (error) {
-                console.error('Failed to create project URL:', error);
-              }
-              
-              // Set a timeout to hide the loading indicator
-              // We use a longer timeout for initial load to ensure Angular has time to bootstrap
-              setTimeout(() => {
-                this.isStackBlitzLoading = false;
-              }, 12000); // 12 seconds should be enough for most Angular apps to bootstrap
-            })
-            .catch((error: Error) => {
-              console.error('StackBlitz SDK error:', error);
-              this.previewError = true;
-              this.isStackBlitzLoading = false;
-            });
-        }
-      } catch (error) {
-        console.error('Error creating StackBlitz project:', error);
-        this.previewError = true;
-        this.isStackBlitzLoading = false;
+        // Use V2 format - enhanced multi-component support
+        parameters = this.previewService.prepareCodeSandboxParameters(this.generatedCodeV2);
+      } else if (this.generatedCode) {
+        console.log('Using legacy format');
+        // Use legacy format
+        parameters = this.previewService.prepareCodeSandboxParameters(this.generatedCode);
+      } else {
+        throw new Error('No generated code available');
       }
-    }, 0);
+      
+      console.log('CodeSandbox parameters prepared, constructing URL...');
+      
+      // Construct the CodeSandbox URL with parameters and options
+      const baseUrl = 'https://codesandbox.io/api/v1/sandboxes/define';
+      const options = 'view=preview&editorsize=0&hidenavigation=1&theme=light&fontsize=14';
+      const fullUrl = `${baseUrl}?${parameters}&${options}`;
+      console.log('CodeSandbox URL prepared:', fullUrl);
+      
+      // Save the URL for opening in full screen
+      this.codeSandboxUrl = fullUrl;
+      
+      // Sanitize the URL for the iframe
+      this.sandboxUrl = this.sanitizer.bypassSecurityTrustResourceUrl(fullUrl);
+      
+      // Set a timeout to hide the loading indicator
+      setTimeout(() => {
+        this.isPreviewLoading = false;
+      }, 5000);
+    } catch (error) {
+      console.error('Error creating CodeSandbox project:', error);
+      this.previewError = true;
+      this.isPreviewLoading = false;
+    }
   }
   
   /**
@@ -239,80 +191,38 @@ export class PreviewPaneComponent implements OnChanges, OnDestroy {
           doc.open();
           doc.write(previewHtml);
           doc.close();
-          
-          // Give a small delay for resources to load
-          setTimeout(() => {
-            try {
-              // Force Material Icons to render correctly if they're present
-              const icons = doc.querySelectorAll('mat-icon');
-              if (icons.length > 0) {
-                Array.from(icons).forEach(icon => {
-                  const iconName = icon.textContent?.trim() || '';
-                  if (iconName) {
-                    icon.innerHTML = iconName;
-                    icon.classList.add('material-icons');
-                  }
-                });
-              }
-            } catch (iconError) {
-              console.warn('Icon processing error:', iconError);
-            }
-          }, 100);
         }
-      } catch (innerError) {
-        console.warn('Fallback iframe update failed:', innerError);
-        // We already have srcdoc as backup, so no need to set error state
+      } catch (error) {
+        console.error('Error updating iframe preview:', error);
+        this.previewError = true;
       }
     }
   }
-
+  
   /**
-   * Toggle preview mode between StackBlitz SDK and iframe
-   * Note: Always uses StackBlitz for V2 format
+   * Toggle between interactive and static preview modes
    */
   togglePreviewMode(): void {
-    // Don't allow toggling away from StackBlitz in V2 mode
-    if (this.isUsingV2Format) {
-      this.useStackBlitzSdk = true;
-      return;
-    }
+    this.useInteractivePreview = !this.useInteractivePreview;
+    console.log(`Preview mode set to: ${this.useInteractivePreview ? 'Interactive' : 'Static'}`);
     
-    this.useStackBlitzSdk = !this.useStackBlitzSdk;
-    if (this.generatedCode) {
-      this.updatePreview();
-    }
+    // Force an update of the preview
+    this.updatePreview();
   }
   
+  /**
+   * Refresh the preview
+   */
   refreshPreview(): void {
     this.updatePreview();
   }
   
+  /**
+   * Open the preview in a new window
+   */
   openFullscreen(): void {
-    if (this.useStackBlitzSdk) {
-      // Open StackBlitz project in a new window
-      if (this.stackBlitzProjectUrl) {
-        window.open(this.stackBlitzProjectUrl, '_blank');
-      } else {
-        // Fallback using component name
-        let mainComponentPath = '';
-        
-        if (this.isUsingV2Format && this.generatedCodeV2?.components[0]) {
-          const primaryComponent = this.generatedCodeV2.components[0];
-          const kebabName = this.toKebabCase(primaryComponent.componentName);
-          mainComponentPath = `src/app/${kebabName}/${kebabName}.component.html`;
-        } else if (this.generatedCode) {
-          mainComponentPath = `src/app/${this.generatedCode.component_name}/${this.generatedCode.component_name}.component.html`;
-        }
-        
-        window.open(`https://stackblitz.com/edit?file=${mainComponentPath}`, '_blank');
-      }
-    } else if (!this.useStackBlitzSdk && this.previewFrame?.nativeElement) {
-      const iframe = this.previewFrame.nativeElement;
-      
-      if (iframe.requestFullscreen) {
-        iframe.requestFullscreen()
-          .catch(err => console.error('Fullscreen request failed:', err));
-      }
+    if (this.codeSandboxUrl) {
+      window.open(this.codeSandboxUrl, '_blank', 'noopener,noreferrer');
     }
   }
 } 

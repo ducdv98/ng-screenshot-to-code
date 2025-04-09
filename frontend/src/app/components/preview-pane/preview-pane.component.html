@@ -16,7 +16,7 @@
     <div class="preview-actions flex gap-2 items-center">
       <mat-slide-toggle 
         class="mr-2" 
-        [checked]="useStackBlitzSdk" 
+        [checked]="useInteractivePreview" 
         (change)="togglePreviewMode()"
         [disabled]="!generatedCode || isUsingV2Format"
         color="primary">
@@ -43,12 +43,20 @@
   
   <div class="preview-content flex-grow">
     @if ((generatedCode || generatedCodeV2) && !previewError) {
-      @if (useStackBlitzSdk) {
-        <div id="stackblitz-preview-container" #stackblitzContainer class="w-full h-full stackblitz-container"></div>
+      @if (useInteractivePreview) {
+        <iframe 
+          id="codesandbox-preview-iframe"
+          #codeSandboxContainer
+          class="w-full h-full border-none"
+          [src]="sandboxUrl"
+          sandbox="allow-modals allow-forms allow-popups allow-scripts allow-same-origin"
+          loading="lazy"
+          title="Code Preview">
+        </iframe>
         
-        <!-- Loading overlay for StackBlitz -->
-        @if (isStackBlitzLoading) {
-          <div class="stackblitz-loading-overlay">
+        <!-- Loading overlay for CodeSandbox -->
+        @if (isPreviewLoading) {
+          <div class="loading-overlay">
             <div class="loading-content">
               <mat-spinner diameter="40" color="accent"></mat-spinner>
               <p class="mt-3">Loading interactive preview...</p>
