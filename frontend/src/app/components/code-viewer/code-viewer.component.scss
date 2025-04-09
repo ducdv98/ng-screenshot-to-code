@@ -2,7 +2,9 @@
 .editor-container {
   height: 400px;
   width: 100%;
-  border: 1px solid rgba(0, 0, 0, 0.12);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 4px;
+  flex-grow: 1;
 }
 
 // Make the tabs fill the available space
@@ -14,9 +16,59 @@
 
 .code-viewer {
   height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
 // Fix the tab content container height to fill available space
 ::ng-deep .mat-mdc-tab-body-wrapper {
   flex-grow: 1;
+}
+
+:host ::ng-deep {
+  .monaco-editor {
+    padding-top: 8px;
+  }
+  
+  .mat-mdc-tab-body-wrapper {
+    flex-grow: 1;
+  }
+  
+  .monaco-editor .overflow-guard {
+    border-radius: 4px;
+  }
+  
+  // Make sure tab content takes full height
+  .mat-mdc-tab-body-content {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+  }
+}
+
+// Component selector styling
+.component-select {
+  width: 100%;
+  min-width: 200px;
+  font-size: 14px;
+  margin-left: 8px;
+  
+  ::ng-deep .mat-mdc-select-trigger {
+    height: 36px;
+    padding: 4px 8px;
+    background-color: rgba(0, 0, 0, 0.04);
+    border-radius: 4px;
+  }
+}
+
+// Fix for single editor mode component selector
+:host ::ng-deep {
+  .flex.items-center.gap-2 {
+    flex: 1;
+
+    .component-select {
+      flex: 1;
+      max-width: 250px;
+    }
+  }
 } 

@@ -1,6 +1,5 @@
 import { Injectable } from '@angular/core';
-import { GeneratedCode, GeneratedCodeV2, GeneratedComponent } from '../models/generated-code.model';
-import { Project } from '@stackblitz/sdk';
+import { GeneratedCode, GeneratedComponent } from '../models/generated-code.model';
 import * as LZString from 'lz-string';
 
 @Injectable({
@@ -15,13 +14,15 @@ export class PreviewService {
     // Create a robust HTML structure with the component HTML and styles
     // Include both CDN and local assets for maximum compatibility
     
+    const mainComponent = generatedCode.components[0];
+    
     const previewHtml = `
       <!DOCTYPE html>
       <html lang="en">
       <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Component Preview - ${generatedCode.component_name}</title>
+        <title>Component Preview - ${mainComponent.componentName}</title>
         
         <!-- Material Design Icons -->
         <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
@@ -96,6 +97,9 @@ export class PreviewService {
             color: rgba(0, 0, 0, 0.87);
             background: #fafafa;
           }
+          
+          /* Component specific styles */
+          ${mainComponent.scss}
           
           /* Mat Typography classes */
           .mat-typography {
@@ -335,125 +339,12 @@ export class PreviewService {
             padding: 0 16px;
             position: relative;
           }
-          
-          /* Component specific styles */
-          ${generatedCode.component_scss}
         </style>
       </head>
       <body class="mat-typography">
-        <div id="component-preview" class="mat-app-background">
-          ${generatedCode.component_html}
+        <div id="component-preview">
+          ${mainComponent.html}
         </div>
-        
-        <!-- Simple runtime script to handle basic Material interactions -->
-        <script>
-          document.addEventListener('DOMContentLoaded', function() {
-            // Handle ripple effects for buttons with mat-button classes
-            const buttons = document.querySelectorAll('[mat-button], [mat-raised-button], [mat-stroked-button], [mat-flat-button], [mat-icon-button]');
-            buttons.forEach(button => {
-              button.addEventListener('click', function(e) {
-                const rect = button.getBoundingClientRect();
-                const ripple = document.createElement('span');
-                const size = Math.max(rect.width, rect.height);
-                const x = e.clientX - rect.left - size / 2;
-                const y = e.clientY - rect.top - size / 2;
-                
-                ripple.style.width = ripple.style.height = size + 'px';
-                ripple.style.left = x + 'px';
-                ripple.style.top = y + 'px';
-                ripple.className = 'ripple';
-                
-                button.appendChild(ripple);
-                setTimeout(() => button.removeChild(ripple), 600);
-              });
-            });
-            
-            // Map Angular Material icon usage to standard Material Icons
-            document.querySelectorAll('mat-icon').forEach(icon => {
-              // Get the text content which should be the icon name
-              const iconName = icon.textContent ? icon.textContent.trim() : '';
-              if (iconName) {
-                // Clear the element and add the icon as a class
-                icon.innerHTML = iconName;
-                icon.classList.add('material-icons');
-              }
-            });
-            
-            // Simple toggle for mat-expansion-panel
-            document.querySelectorAll('.mat-expansion-panel-header').forEach(header => {
-              header.addEventListener('click', function() {
-                const panel = this.closest('.mat-expansion-panel');
-                if (panel) {
-                  panel.classList.toggle('mat-expanded');
-                  const content = panel.querySelector('.mat-expansion-panel-content');
-                  if (content) {
-                    content.style.display = panel.classList.contains('mat-expanded') ? 'block' : 'none';
-                  }
-                }
-              });
-            });
-            
-            // Handle checkbox toggle
-            document.querySelectorAll('mat-checkbox').forEach(checkbox => {
-              checkbox.addEventListener('click', function() {
-                this.classList.toggle('mat-checkbox-checked');
-                const input = this.querySelector('input[type="checkbox"]');
-                if (input) {
-                  input.checked = !input.checked;
-                }
-              });
-            });
-            
-            // Handle radio button toggle
-            document.querySelectorAll('mat-radio-button').forEach(radio => {
-              radio.addEventListener('click', function() {
-                const name = this.getAttribute('name');
-                if (name) {
-                  document.querySelectorAll('mat-radio-button[name="' + name + '"]').forEach(btn => {
-                    btn.classList.remove('mat-radio-checked');
-                  });
-                }
-                this.classList.add('mat-radio-checked');
-                const input = this.querySelector('input[type="radio"]');
-                if (input) {
-                  input.checked = true;
-                }
-              });
-            });
-            
-            // Basic tab switching
-            document.querySelectorAll('.mat-tab-label').forEach(tab => {
-              tab.addEventListener('click', function() {
-                const tabGroup = this.closest('mat-tab-group');
-                if (!tabGroup) return;
-                
-                // Get index of clicked tab
-                const tabs = Array.from(tabGroup.querySelectorAll('.mat-tab-label'));
-                const index = tabs.indexOf(this);
-                
-                // Remove active class from all tabs and bodies
-                tabs.forEach(t => t.classList.remove('mat-tab-label-active'));
-                
-                // Add active class to clicked tab
-                this.classList.add('mat-tab-label-active');
-                
-                // Show the corresponding content
-                const bodies = tabGroup.querySelectorAll('.mat-tab-body');
-                bodies.forEach((body, i) => {
-                  body.style.display = i === index ? 'block' : 'none';
-                });
-              });
-            });
-            
-            // Activate first tab if exists
-            const firstTab = document.querySelector('.mat-tab-label');
-            if (firstTab) {
-              firstTab.click();
-            }
-            
-            console.log('Static preview initialized with enhanced Material components support');
-          });
-        </script>
       </body>
       </html>
     `;
@@ -462,669 +353,69 @@ export class PreviewService {
   }
 
   /**
-   * Prepare a StackBlitz project with the new multi-component generated code format
+   * Prepare CodeSandbox parameters
    */
-  prepareStackBlitzProjectV2(generatedCodeV2: GeneratedCodeV2): Project {
-    // Log the components we're working with
-    console.log(`Processing ${generatedCodeV2.components.length} components`);
-    generatedCodeV2.components.forEach(c => console.log(` - ${c.componentName}`));
-    
-    // Create files object for StackBlitz - MUST be directly at root level
-    const files: Record<string, string> = {};
-    
-    console.log('---COMPONENT DEBUG START---');
-    // Step 1: Add all component code to separate files
-    const componentSelectors = new Map<string, string>();
-    
-    // First pass - build selector map
-    generatedCodeV2.components.forEach(comp => {
-      const kebabName = this.toKebabCase(comp.componentName);
-      componentSelectors.set(comp.componentName, `app-${kebabName}`);
-    });
-    
-    console.log('Component selectors:', Object.fromEntries(componentSelectors));
-    
-    // Second pass - process components
-    generatedCodeV2.components.forEach((component, index) => {
-      console.log(`Processing component ${index+1}: ${component.componentName}`);
-      
-      const kebabName = this.toKebabCase(component.componentName);
-      
-      // Log just snippets of content for debugging
-      const tsPreview = component.typescript.substring(0, 100) + '...';
-      const htmlPreview = component.html.substring(0, 100) + '...';
-      console.log(`TS content preview: ${tsPreview}`);
-      console.log(`HTML content preview: ${htmlPreview}`);
-      
-      // Ensure TypeScript includes standalone: true and proper imports
-      let typescript = component.typescript;
-      
-      // Fix imports of other components to reference root level instead of subdirectories
-      typescript = typescript.replace(
-        /import\s+{\s*(\w+)\s*}\s+from\s+['"]\.\/[\w-]+\/[\w-]+\.component['"]/g, 
-        'import { $1 } from \'./$1.component\''
-      );
-      
-      // Also fix kebab-case component imports
-      generatedCodeV2.components.forEach(otherComp => {
-        const otherKebabName = this.toKebabCase(otherComp.componentName);
-        // Look for imports from subdirectories that match this component
-        const subDirPattern = new RegExp(`import\\s+{\\s*${otherComp.componentName}\\s*}\\s+from\\s+['"]\\.\\/[\\w-]+\\/${otherKebabName}\\.component['"]`, 'g');
-        // Replace with direct root import
-        typescript = typescript.replace(subDirPattern, `import { ${otherComp.componentName} } from './${otherKebabName}.component'`);
-      });
-      
-      // Check if the component is already standalone
-      if (!typescript.includes('standalone: true')) {
-        // Detect Material components used in HTML
-        const materialImports = [];
-        
-        // Check HTML for common Material components
-        if (component.html.includes('mat-button') || component.html.includes('mat-raised-button') || component.html.includes('mat-icon-button')) {
-          materialImports.push('MatButtonModule');
-        }
-        if (component.html.includes('mat-card')) {
-          materialImports.push('MatCardModule');
-        }
-        if (component.html.includes('mat-toolbar')) {
-          materialImports.push('MatToolbarModule');
-        }
-        if (component.html.includes('mat-icon')) {
-          materialImports.push('MatIconModule');
-        }
-        if (component.html.includes('mat-form-field') || component.html.includes('matInput')) {
-          materialImports.push('MatInputModule');
-        }
-        if (component.html.includes('mat-list')) {
-          materialImports.push('MatListModule');
-        }
-        if (component.html.includes('mat-sidenav')) {
-          materialImports.push('MatSidenavModule');
-        }
-        
-        // Create the imports array
-        const baseImports = 'CommonModule, NgClass, NgFor, NgIf, FormsModule, ReactiveFormsModule';
-        const allImports = materialImports.length > 0 
-          ? `${baseImports}, ${materialImports.join(', ')}` 
-          : baseImports;
-        
-        // Add standalone: true to the @Component decorator with all imports
-        typescript = typescript.replace(
-          /@Component\(\s*{\s*/,
-          `@Component({\n  standalone: true,\n  imports: [${allImports}],\n  `
-        );
-        
-        // Add necessary imports if they don't exist
-        let importStatement = `import { Component, OnInit } from '@angular/core';\nimport { CommonModule, NgClass, NgFor, NgIf } from '@angular/common';\nimport { FormsModule, ReactiveFormsModule } from '@angular/forms';\n`;
-        
-        // Add Material imports
-        if (materialImports.length > 0) {
-          materialImports.forEach(module => {
-            const modulePath = module.replace('Module', '').toLowerCase();
-            importStatement += `import { ${module} } from '@angular/material/${modulePath}';\n`;
-          });
-        }
-        
-        // Find the first import statement or start of file
-        const importIndex = typescript.search(/import\s+{/);
-        if (importIndex >= 0) {
-          // Insert before first import
-          typescript = importStatement + typescript;
-        } else {
-          // Add to start of file if no imports
-          typescript = importStatement + typescript;
-        }
-      }
-      
-      // Process HTML to fix component references
-      let html = component.html;
-      
-      // Place component files directly at root level for node template
-      files[`${kebabName}.component.ts`] = typescript;
-      files[`${kebabName}.component.html`] = html;
-      files[`${kebabName}.component.scss`] = component.scss || '';
-      
-      console.log(`Added component files for: ${kebabName}`);
-    });
-    console.log('---COMPONENT DEBUG END---');
-    
-    // Step 2: Add essential project files
-    
-    // Base package.json with Angular Material
-    files['package.json'] = `{
-  "name": "angular-screenshot-to-code",
-  "version": "0.0.0",
-  "private": true,
-  "dependencies": {
-    "@angular/animations": "^19.0.0",
-    "@angular/cdk": "^19.0.0",
-    "@angular/common": "^19.0.0",
-    "@angular/compiler": "^19.0.0",
-    "@angular/core": "^19.0.0",
-    "@angular/forms": "^19.0.0",
-    "@angular/material": "^19.0.0",
-    "@angular/platform-browser": "^19.0.0",
-    "@angular/platform-browser-dynamic": "^19.0.0",
-    "@angular/router": "^19.0.0",
-    "rxjs": "^7.8.0",
-    "tslib": "^2.6.2",
-    "zone.js": "^0.14.0"
-  },
-  "scripts": {
-    "ng": "ng",
-    "start": "ng serve",
-    "build": "ng build"
-  }
-}`;
-  
-    // Main App Component that imports and uses the primary component
-    const primaryComponent = generatedCodeV2.components[0]; 
-    const primaryKebabName = this.toKebabCase(primaryComponent.componentName);
-    
-    console.log('---MAIN.TS DEBUG START---');
-    // Create list of all component import statements with correct paths
-    const componentImports = generatedCodeV2.components.map(comp => {
-      const kebabName = this.toKebabCase(comp.componentName);
-      // Import directly from root without subdirectories
-      const importLine = `import { ${comp.componentName} } from './${kebabName}.component';`;
-      console.log(`Generated import: ${importLine}`);
-      return importLine;
-    }).join('\n');
-    
-    // Create the imports array for AppComponent
-    const importsArray = generatedCodeV2.components.map(comp => comp.componentName).join(', ');
-    console.log(`Imports array: [${importsArray}]`);
-    
-    const mainTsContent = `import 'zone.js';
-import { bootstrapApplication } from '@angular/platform-browser';
-import { provideAnimations } from '@angular/platform-browser/animations';
-import { Component } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { provideRouter } from '@angular/router';
-${componentImports}
-
-@Component({
-  selector: 'app-root',
-  standalone: true,
-  imports: [CommonModule, ${importsArray}],
-  template: \`<app-${primaryKebabName}></app-${primaryKebabName}>\`
-})
-export class AppComponent {}
-
-bootstrapApplication(AppComponent, {
-  providers: [
-    provideAnimations(),
-    provideRouter([])
-  ]
-}).catch(err => console.error(err));`;
-
-    console.log('Main.ts content created:');
-    console.log(mainTsContent.substring(0, 300) + '...');
-    console.log('---MAIN.TS DEBUG END---');
-    
-    files['main.ts'] = mainTsContent;
-
-    // Add index.html with Material theme and fonts
-    files['index.html'] = `<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <title>Angular App</title>
-    <base href="/">
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/@angular/material@19.0.0/prebuilt-themes/indigo-pink.css" rel="stylesheet">
-  </head>
-  <body class="mat-typography">
-    <app-root></app-root>
-  </body>
-</html>`;
-
-    // Add styles.css with utility classes often used in the generated components
-    files['styles.css'] = `@import 'https://cdn.jsdelivr.net/npm/@angular/material@19.0.0/prebuilt-themes/indigo-pink.css';
-
-html, body { height: 100%; }
-body { 
-  margin: 0; 
-  font-family: Roboto, "Helvetica Neue", sans-serif; 
-  padding: 0;
-}
-
-/* Utility classes to support Material styling and common patterns */
-.bg-zinc-800, .bg-zinc-900 { background-color: #18181b; color: white; }
-.bg-zinc-700 { background-color: #3f3f46; color: white; }
-.h-screen { height: 100vh; }
-.flex { display: flex; }
-.flex-col { flex-direction: column; }
-.flex-row { flex-direction: row; }
-.flex-1 { flex: 1; }
-.flex-shrink-0 { flex-shrink: 0; }
-.flex-grow { flex-grow: 1; }
-.justify-between { justify-content: space-between; }
-.items-center { align-items: center; }
-.overflow-hidden { overflow: hidden; }
-.overflow-y-auto { overflow-y: auto; }
-.w-64 { width: 16rem; }
-.w-full { width: 100%; }
-.h-full { height: 100%; }
-.p-4 { padding: 1rem; }
-.m-4 { margin: 1rem; }
-.gap-4 { gap: 1rem; }
-.sticky { position: sticky; }
-.top-0 { top: 0; }
-.z-10 { z-index: 10; }
-
-/* Additional styling for Material components */
-.mat-mdc-card {
-  --mdc-elevated-card-container-color: transparent;
-}`;
-
-    // Update angular.json to reference the correct main.ts path
-    files['angular.json'] = `{
-  "$schema": "./node_modules/@angular/cli/lib/config/schema.json",
-  "version": 1,
-  "newProjectRoot": "projects",
-  "projects": {
-    "demo": {
-      "projectType": "application",
-      "root": "",
-      "sourceRoot": "",
-      "architect": {
-        "build": {
-          "builder": "@angular-devkit/build-angular:browser",
-          "options": {
-            "outputPath": "dist",
-            "index": "index.html",
-            "main": "main.ts",
-            "polyfills": ["zone.js"],
-            "tsConfig": "tsconfig.json",
-            "inlineStyleLanguage": "scss",
-            "assets": [],
-            "styles": ["styles.css"],
-            "scripts": []
-          }
-        },
-        "serve": {
-          "builder": "@angular-devkit/build-angular:dev-server",
-          "options": {
-            "browserTarget": "demo:build"
-          }
-        }
-      }
-    }
-  },
-  "defaultProject": "demo"
-}`;
-
-    // Minimal tsconfig.json for Angular 19
-    files['tsconfig.json'] = `{
-  "compileOnSave": false,
-  "compilerOptions": {
-    "baseUrl": "./",
-    "outDir": "./dist/out-tsc",
-    "forceConsistentCasingInFileNames": true,
-    "strict": true,
-    "noImplicitOverride": true,
-    "noPropertyAccessFromIndexSignature": true,
-    "noImplicitReturns": true,
-    "noFallthroughCasesInSwitch": true,
-    "sourceMap": true,
-    "declaration": false,
-    "downlevelIteration": true,
-    "experimentalDecorators": true,
-    "moduleResolution": "node",
-    "importHelpers": true,
-    "target": "ES2022",
-    "module": "ES2022",
-    "lib": [
-      "ES2022",
-      "dom"
-    ],
-    "useDefineForClassFields": false
-  },
-  "angularCompilerOptions": {
-    "enableI18nLegacyMessageIdFormat": false,
-    "strictInjectionParameters": true,
-    "strictInputAccessModifiers": true,
-    "strictTemplates": true
-  }
-}`;
-
-    // Log all files in the project for easier debugging
-    console.log('---PROJECT FILES LIST START---');
-    console.log("All files in StackBlitz project:", Object.keys(files));
-    
-    // Check if all component files are included
-    const componentFiles = Object.keys(files).filter(file => file.includes('component'));
-    console.log(`Component files count: ${componentFiles.length}`);
-    console.log(`Component files: ${componentFiles.join(', ')}`);
-    console.log('---PROJECT FILES LIST END---');
-
-    return {
-      title: 'Generated Angular App',
-      description: 'Angular Components from Screenshot',
-      template: 'node',
-      files: files
-    };
-  }
-
-  /**
-   * Generate component code by combining all the individual components into a single file
-   */
-  private generateCombinedComponentCode(components: GeneratedComponent[]): string {
-    // Get primary component (first in array)
-    const primaryComponent = components[0];
-    const primaryKebabName = this.toKebabCase(primaryComponent.componentName);
-    
-    // Create imports section
-    const imports = this.generateRequiredImports(components);
-        
-    // Create component classes section - each component as a separate class
-    const componentClasses = components.map((comp, index) => {
-      // Process the component to ensure it's ready for inline use
-      const template = comp.html.replace(/`/g, '\\`');
-      const styles = comp.scss?.replace(/`/g, '\\`') || '';
-      const kebabName = this.toKebabCase(comp.componentName);
-      
-      // Create standalone component with inline template and styles
-      return `
-@Component({
-  selector: 'app-${kebabName}',
-  standalone: true,
-  imports: [CommonModule, FormsModule, ReactiveFormsModule, MatButtonModule, MatCardModule, MatToolbarModule, MatIconModule, MatInputModule, MatListModule, MatSidenavModule, NgClass, NgFor, NgIf],
-  template: \`${template}\`,
-  styles: [\`${styles}\`]
-})
-export class ${comp.componentName} {
-  ${this.extractComponentLogic(comp.typescript)}
-}`;
-    }).join('\n\n');
-    
-    // Create the main app component that contains the primary component
-    const appComponent = `
-@Component({
-  selector: 'app-root',
-  standalone: true,
-  imports: [${components.map(c => c.componentName).join(', ')}],
-  template: \`<app-${primaryKebabName}></app-${primaryKebabName}>\`,
-  styles: []
-})
-export class AppComponent { }`;
-    
-    // Combine everything into a single file
-    return `${imports}
-
-${componentClasses}
-
-${appComponent}`;
-  }
-
-  /**
-   * Extract the component class logic from the TypeScript content
-   */
-  private extractComponentLogic(typescript: string): string {
-    // Try to extract the class body
-    const classMatch = typescript.match(/export\s+class\s+\w+\s*{([^}]*)}/s);
-    if (classMatch && classMatch[1]) {
-      return classMatch[1].trim();
-    }
-    
-    // Fallback - return empty body
-    return '';
-  }
-
-  /**
-   * Generate all required imports for the components
-   */
-  private generateRequiredImports(components: GeneratedComponent[]): string {
-    // Essential Angular imports
-    let imports = `import { Component } from '@angular/core';
-import { CommonModule, NgClass, NgFor, NgIf } from '@angular/common';
-import { FormsModule, ReactiveFormsModule } from '@angular/forms';`;
-    
-    // Add Material imports based on usage in components
-    const materialModules = new Set<string>();
-    
-    components.forEach(comp => {
-      // Check for common Material module usage
-      if (comp.typescript.includes('MatButton') || comp.html.includes('mat-button')) {
-        materialModules.add('MatButtonModule');
-      }
-      if (comp.typescript.includes('MatCard') || comp.html.includes('mat-card')) {
-        materialModules.add('MatCardModule');
-      }
-      if (comp.typescript.includes('MatToolbar') || comp.html.includes('mat-toolbar')) {
-        materialModules.add('MatToolbarModule');
-      }
-      if (comp.typescript.includes('MatIcon') || comp.html.includes('mat-icon')) {
-        materialModules.add('MatIconModule');
-      }
-      if (comp.typescript.includes('MatInput') || comp.html.includes('mat-form-field')) {
-        materialModules.add('MatInputModule');
-      }
-      if (comp.typescript.includes('MatList') || comp.html.includes('mat-list')) {
-        materialModules.add('MatListModule');
-      }
-      if (comp.typescript.includes('MatSidenav') || comp.html.includes('mat-sidenav')) {
-        materialModules.add('MatSidenavModule');
-      }
-    });
-    
-    // Add detected Material imports
-    if (materialModules.size > 0) {
-      const materialImports = Array.from(materialModules)
-        .map(module => `import { ${module} } from '@angular/material/${module.replace('Module', '').toLowerCase()}';`)
-        .join('\n');
-      
-      imports += '\n\n// Angular Material imports\n' + materialImports;
-    }
-    
-    return imports;
-  }
-
-  /**
-   * Verify that all components are properly included in the StackBlitz project
-   * This is a testing/debugging method to ensure components aren't missed
-   */
-  private verifyComponentsIncluded(project: { files: Record<string, string> }, components: GeneratedComponent[]): void {
-    console.log('=== VERIFICATION RESULTS ===');
-    
-    // Get file keys
-    const fileKeys = Object.keys(project.files);
-    console.log(`Total files in project: ${fileKeys.length}`);
-    
-    // Verify each component has its files included
-    let allIncluded = true;
-    
-    components.forEach(component => {
-      const kebabName = this.toKebabCase(component.componentName);
-      const tsFile = `${kebabName}.component.ts`;
-      const htmlFile = `${kebabName}.component.html`;
-      const scssFile = `${kebabName}.component.scss`;
-      
-      const hasTs = fileKeys.includes(tsFile);
-      const hasHtml = fileKeys.includes(htmlFile);
-      const hasScss = fileKeys.includes(scssFile);
-      
-      console.log(`Component: ${component.componentName}`);
-      console.log(`  TS File: ${hasTs ? '✅' : '❌'}`);
-      console.log(`  HTML File: ${hasHtml ? '✅' : '❌'}`);
-      console.log(`  SCSS File: ${hasScss ? '✅' : '❌'}`);
-      
-      if (!hasTs || !hasHtml || !hasScss) {
-        allIncluded = false;
-      }
-    });
-    
-    console.log(`All components properly included: ${allIncluded ? '✅' : '❌'}`);
-    console.log('=========================');
-  }
-
-  /**
-   * Convert PascalCase to kebab-case
-   */
-  private toKebabCase(str: string): string {
-    return str.replace(/([a-z0-9])([A-Z])/g, '$1-$2').toLowerCase();
-  }
-
-  /**
-   * Prepare a StackBlitz project with the generated component code (legacy format)
-   */
-  prepareStackBlitzProject(generatedCode: GeneratedCode): Project {
-    // Create a GeneratedCodeV2 object from the legacy format
-    const generatedCodeV2: GeneratedCodeV2 = {
-      components: [
-        {
-          componentName: this.toPascalCase(generatedCode.component_name),
-          typescript: generatedCode.component_ts,
-          html: generatedCode.component_html,
-          scss: generatedCode.component_scss
-        }
-      ]
-    };
-    
-    // Reuse the V2 method for consistency
-    return this.prepareStackBlitzProjectV2(generatedCodeV2);
-  }
-
-  /**
-   * Helper: Convert kebab-case to PascalCase
-   */
-  private toPascalCase(str: string): string {
-    return str
-      .split('-')
-      .map(segment => segment.charAt(0).toUpperCase() + segment.slice(1))
-      .join('');
-  }
-
-  /**
-   * Prepare CodeSandbox parameters for the define API with new multi-component generated code format
-   */
-  prepareCodeSandboxParameters(generatedCodeV2: GeneratedCodeV2 | GeneratedCode): string {
-    console.log('Preparing CodeSandbox parameters...');
-    
-    // Create files object for CodeSandbox
-    const files: Record<string, { content: string }> = {};
-    
+  prepareCodeSandboxParameters(generatedCode: GeneratedCode): string {
     try {
-      // Process as V2 format if it's a GeneratedCodeV2 object
-      if ('components' in generatedCodeV2) {
-        console.log(`Processing ${generatedCodeV2.components.length} components in V2 format`);
-        generatedCodeV2.components.forEach(c => console.log(` - ${c.componentName}`));
-        
-        // Process each component
-        generatedCodeV2.components.forEach(component => {
-          const kebabName = this.toKebabCase(component.componentName);
-          
-          // Add component TypeScript file
-          files[`src/app/${kebabName}/${kebabName}.component.ts`] = {
-            content: component.typescript
-          };
-          
-          // Add component HTML file
-          files[`src/app/${kebabName}/${kebabName}.component.html`] = {
-            content: component.html
-          };
-          
-          // Add component SCSS file
-          files[`src/app/${kebabName}/${kebabName}.component.scss`] = {
-            content: component.scss
-          };
-        });
-        
-        // Add main component to app.component.ts
-        const mainComponent = generatedCodeV2.components[0];
-        const mainComponentSelector = `app-${this.toKebabCase(mainComponent.componentName)}`;
-        
-        // Add app-routing.module.ts
-        files['src/app/app-routing.module.ts'] = {
-          content: this.generateAppRoutingModule(generatedCodeV2.components)
-        };
-        
-        // Add app.component.ts with references to all components
-        files['src/app/app.component.ts'] = {
-          content: this.generateAppComponent(generatedCodeV2.components)
-        };
-        
-        // Add app.component.html that includes the main component
-        files['src/app/app.component.html'] = {
-          content: `<${mainComponentSelector}></${mainComponentSelector}>`
-        };
-        
-      } else {
-        // Process as legacy format (GeneratedCode)
-        console.log('Processing legacy format component');
-        const legacyCode = generatedCodeV2 as GeneratedCode;
-        const kebabName = this.toKebabCase(legacyCode.component_name);
+      console.log(`Processing ${generatedCode.components.length} components`);
+      generatedCode.components.forEach(c => console.log(` - ${c.componentName}`));
+      
+      // Initialize files object for CodeSandbox
+      const files: Record<string, { content: string }> = {};
+      
+      // Add all components to files
+      generatedCode.components.forEach(component => {
+        const kebabName = this.toKebabCase(component.componentName);
         
         // Add component TypeScript file
-        files[`src/app/${kebabName}/${kebabName}.component.ts`] = {
-          content: legacyCode.component_ts
+        files[`src/app/components/${kebabName}/${kebabName}.component.ts`] = {
+          content: component.typescript
         };
         
-        // Add component HTML file
-        files[`src/app/${kebabName}/${kebabName}.component.html`] = {
-          content: legacyCode.component_html
+        // Add component HTML template
+        files[`src/app/components/${kebabName}/${kebabName}.component.html`] = {
+          content: component.html
         };
         
-        // Add component SCSS file
-        files[`src/app/${kebabName}/${kebabName}.component.scss`] = {
-          content: legacyCode.component_scss
+        // Add component SCSS styles
+        files[`src/app/components/${kebabName}/${kebabName}.component.scss`] = {
+          content: component.scss
         };
-        
-        // Add app.component.ts with references to the component
-        files['src/app/app.component.ts'] = {
-          content: this.generateAppComponentLegacy(legacyCode)
-        };
-        
-        // Add app.component.html that includes the component
-        files['src/app/app.component.html'] = {
-          content: `<app-${kebabName}></app-${kebabName}>`
-        };
-      }
+      });
       
-      // Add common boilerplate files
+      // Get the main component for app construction
+      const mainComponent = generatedCode.components[0];
+      
+      // Add app routing module that imports all components
+      files['src/app/app.routes.ts'] = {
+        content: this.generateAppRoutingModule(generatedCode.components)
+      };
+      
+      // Add app component that uses the router outlet
+      files['src/app/app.component.ts'] = {
+        content: this.generateAppComponent(generatedCode.components)
+      };
+      
+      // Add required boilerplate files
       this.addBoilerplateFiles(files);
       
-      // Log the files being included
-      console.log('Project files:', Object.keys(files));
-      
-      // Create parameters object with files
+      // Convert files object to parameters string and compress
       const parameters = {
         files
       };
       
-      // Compress and encode parameters for CodeSandbox define API
-      try {
-        const parametersStr = JSON.stringify(parameters);
-        console.log('Parameters JSON string length:', parametersStr.length);
-        
-        // Use LZString compression with error handling
-        const compressedParams = LZString.compressToBase64(parametersStr);
-        console.log('Compressed parameters length:', compressedParams.length);
-        
-        if (!compressedParams) {
-          throw new Error('Compression failed');
-        }
-        
-        // Properly encode for URL
-        return encodeURIComponent(compressedParams);
-      } catch (error) {
-        console.error('Error during compression:', error);
-        // Fallback to simpler encoding if compression fails
-        const simpleParams = JSON.stringify(parameters);
-        return encodeURIComponent(btoa(simpleParams));
-      }
+      const paramStr = JSON.stringify(parameters);
+      const compressed = LZString.compressToBase64(paramStr);
+      
+      return compressed;
     } catch (error) {
       console.error('Error preparing CodeSandbox parameters:', error);
-      throw error;
+      throw new Error('Failed to prepare CodeSandbox parameters');
     }
   }
 
   /**
-   * Add common Angular boilerplate files to the files object
+   * Add boilerplate files
    */
   private addBoilerplateFiles(files: Record<string, { content: string }>): void {
     // Add package.json
@@ -1237,7 +528,6 @@ import { FormsModule, ReactiveFormsModule } from '@angular/forms';`;
     "importHelpers": true,
     "target": "ES2022",
     "module": "ES2022",
-    "useDefineForClassFields": false,
     "lib": [
       "ES2022",
       "dom"
@@ -1330,7 +620,7 @@ body { margin: 0; font-family: Roboto, "Helvetica Neue", sans-serif; }
   }
   
   /**
-   * Generate app-routing.module.ts content for a set of components
+   * Generate app routing module
    */
   private generateAppRoutingModule(components: GeneratedComponent[]): string {
     // Generate imports for all components
@@ -1354,7 +644,7 @@ ${routes}
   }
   
   /**
-   * Generate app.component.ts content for a set of components
+   * Generate app component
    */
   private generateAppComponent(components: GeneratedComponent[]): string {
     return `import { Component } from '@angular/core';
@@ -1372,27 +662,21 @@ export class AppComponent {
 }
 `;
   }
-  
-  /**
-   * Generate app.component.ts content for a legacy component
-   */
-  private generateAppComponentLegacy(legacyCode: GeneratedCode): string {
-    const kebabName = this.toKebabCase(legacyCode.component_name);
-    const componentName = legacyCode.component_name;
-    
-    return `import { Component } from '@angular/core';
-import { ${componentName} } from './${kebabName}/${kebabName}.component';
 
-@Component({
-  selector: 'app-root',
-  standalone: true,
-  imports: [${componentName}],
-  templateUrl: './app.component.html',
-  styleUrls: ['./app.component.scss']
-})
-export class AppComponent {
-  title = 'Angular Preview';
-}
-`;
+  /**
+   * Convert string to kebab case
+   */
+  private toKebabCase(str: string): string {
+    return str.replace(/([a-z0-9])([A-Z])/g, '$1-$2').toLowerCase();
+  }
+
+  /**
+   * Convert string to pascal case
+   */
+  private toPascalCase(str: string): string {
+    return str
+      .split('-')
+      .map(segment => segment.charAt(0).toUpperCase() + segment.slice(1))
+      .join('');
   }
 }

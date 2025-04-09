@@ -1,0 +1,23 @@
+/* Import Monaco patch to fix font issues */
+@import './patch/monaco-patch.scss';
+
+/* Add custom styles to ensure Monaco editor fonts are loaded from a CDN */
+@font-face {
+  font-family: 'codicon';
+  src: url('https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/base/browser/ui/codicons/codicon/codicon.ttf') format('truetype');
+}
+
+/* You can add global styles to this file, and also import other style files */
+html, body { height: 100%; }
+body { margin: 0; font-family: Roboto, "Helvetica Neue", sans-serif; }
+
+/* Add more space for the editor container */
+.editor-container {
+  min-height: 400px;
+}
+
+/* Ensure monaco editor scales properly */
+.monaco-editor {
+  width: 100%;
+  height: 100%;
+} 

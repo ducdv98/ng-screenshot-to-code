@@ -94,7 +94,7 @@ export class GeneratorPageComponent {
     
     this.apiService.generateCodeFromImage(file, colors).subscribe({
       next: (response) => {
-        this.generatedCode = response;
+        this.generatedCode = response as GeneratedCode;
         this.isLoading = false;
       },
       error: (err) => {
@@ -114,7 +114,7 @@ export class GeneratorPageComponent {
     
     this.apiService.generateCodeFromFigma(figmaInput).subscribe({
       next: (response) => {
-        this.generatedCode = response;
+        this.generatedCode = response as GeneratedCode;
         this.isLoading = false;
       },
       error: (err) => {
@@ -131,21 +131,23 @@ export class GeneratorPageComponent {
   copyCode(type: 'ts' | 'html' | 'scss'): void {
     if (!this.generatedCode) return;
     
-    let textToCopy = '';
+    // Get the first component
+    const component = this.generatedCode.components[0];
+    let content = '';
     
     switch (type) {
       case 'ts':
-        textToCopy = this.generatedCode.component_ts;
+        content = component.typescript;
         break;
       case 'html':
-        textToCopy = this.generatedCode.component_html;
+        content = component.html;
         break;
       case 'scss':
-        textToCopy = this.generatedCode.component_scss;
+        content = component.scss;
         break;
     }
     
-    navigator.clipboard.writeText(textToCopy)
+    navigator.clipboard.writeText(content)
       .then(() => {
         this.snackBar.open('Code copied to clipboard', 'Dismiss', {
           duration: 3000

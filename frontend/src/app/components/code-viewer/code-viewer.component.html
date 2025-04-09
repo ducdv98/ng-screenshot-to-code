@@ -3,7 +3,24 @@
     <div class="flex justify-between items-center mb-2">
       <div class="text-lg font-medium">
         @if (generatedCode) {
-          Component: <span class="font-bold">{{ generatedCode.component_name }}.component</span>
+          @if (generatedCode.components.length > 1) {
+            <div class="flex flex-col gap-1">
+              <span>Component:</span>
+              <mat-select 
+                [(ngModel)]="selectedComponentIndex" 
+                (selectionChange)="onComponentChange()"
+                aria-label="Select component"
+                class="component-select w-full">
+                @for (component of generatedCode.components; track $index) {
+                  <mat-option [value]="$index">
+                    {{ component.componentName }}
+                  </mat-option>
+                }
+              </mat-select>
+            </div>
+          } @else {
+            Component: <span class="font-bold">{{ selectedComponent?.componentName || 'Component' }}</span>
+          }
         } @else {
           Generated Code
         }
@@ -14,7 +31,7 @@
           mat-button 
           color="primary"
           matTooltip="Download all files"
-          [disabled]="!generatedCode"
+          [disabled]="!generatedCode && !selectedComponent"
           (click)="downloadAllFiles()"
           aria-label="Download all component files">
           <mat-icon aria-hidden="true">download</mat-icon> Download Files
@@ -22,59 +39,78 @@
       </div>
     </div>
 
-    <mat-tab-group class="flex-grow" (selectedTabChange)="announceSelectedTab($event)">
-      <!-- TypeScript -->
-      <mat-tab label="TypeScript" aria-label="TypeScript code tab">
-        <div class="flex justify-between items-center p-2">
-          <span class="text-sm">{{ generatedCode?.component_name || 'component' }}.component.ts</span>
-          <button 
-            mat-icon-button 
-            matTooltip="Copy TypeScript code"
-            [disabled]="!generatedCode"
-            (click)="copyCode('ts')"
-            aria-label="Copy TypeScript code to clipboard">
-            <mat-icon aria-hidden="true">content_copy</mat-icon>
-          </button>
-        </div>
-        <div #tsEditor class="editor-container" role="region" aria-label="TypeScript code editor"></div>
-      </mat-tab>
-      
-      <!-- HTML -->
-      <mat-tab label="HTML" aria-label="HTML code tab">
-        <div class="flex justify-between items-center p-2">
-          <span class="text-sm">{{ generatedCode?.component_name || 'component' }}.component.html</span>
-          <button 
-            mat-icon-button 
-            matTooltip="Copy HTML code"
-            [disabled]="!generatedCode"
-            (click)="copyCode('html')"
-            aria-label="Copy HTML code to clipboard">
-            <mat-icon aria-hidden="true">content_copy</mat-icon>
-          </button>
-        </div>
-        <div #htmlEditor class="editor-container" role="region" aria-label="HTML code editor"></div>
-      </mat-tab>
-      
-      <!-- SCSS -->
-      <mat-tab label="SCSS" aria-label="SCSS code tab">
-        <div class="flex justify-between items-center p-2">
-          <span class="text-sm">{{ generatedCode?.component_name || 'component' }}.component.scss</span>
-          <button 
-            mat-icon-button 
-            matTooltip="Copy SCSS code"
-            [disabled]="!generatedCode"
-            (click)="copyCode('scss')"
-            aria-label="Copy SCSS code to clipboard">
-            <mat-icon aria-hidden="true">content_copy</mat-icon>
-          </button>
-        </div>
-        <div #scssEditor class="editor-container" role="region" aria-label="SCSS code editor"></div>
-      </mat-tab>
-    </mat-tab-group>
+    <!-- Simple language selector instead of tabs -->
+    <div class="language-selector mb-2 flex">
+      <button 
+        mat-button 
+        [color]="activeLanguage === 'typescript' ? 'primary' : ''"
+        (click)="setActiveLanguage('typescript')"
+        [attr.aria-pressed]="activeLanguage === 'typescript'"
+        aria-label="TypeScript code tab">
+        TypeScript
+      </button>
+      <button 
+        mat-button 
+        [color]="activeLanguage === 'html' ? 'primary' : ''"
+        (click)="setActiveLanguage('html')"
+        [attr.aria-pressed]="activeLanguage === 'html'"
+        aria-label="HTML code tab">
+        HTML
+      </button>
+      <button 
+        mat-button 
+        [color]="activeLanguage === 'scss' ? 'primary' : ''"
+        (click)="setActiveLanguage('scss')"
+        [attr.aria-pressed]="activeLanguage === 'scss'"
+        aria-label="SCSS code tab">
+        SCSS
+      </button>
+    </div>
+
+    <!-- Single editor container that changes content based on language selection -->
+    <div class="flex-grow">
+      <div class="flex justify-between items-center p-2">
+        @if (selectedComponent) {
+          <span class="text-sm">{{ toKebabCase(selectedComponent.componentName) }}.component.{{ activeLanguage }}</span>
+        } @else if (generatedCode && generatedCode.components.length > 0) {
+          <span class="text-sm">{{ toKebabCase(generatedCode.components[0].componentName) }}.component.{{ activeLanguage }}</span>
+        } @else {
+          <span class="text-sm">component.{{ activeLanguage }}</span>
+        }
+        <button 
+          mat-icon-button 
+          matTooltip="Copy code"
+          [disabled]="!generatedCode && !selectedComponent"
+          (click)="copyCodeByLanguage()"
+          aria-label="Copy code to clipboard">
+          <mat-icon aria-hidden="true">content_copy</mat-icon>
+        </button>
+      </div>
+      <div #singleLanguageEditor class="editor-container" role="region" [attr.aria-label]="activeLanguage + ' code editor'"></div>
+    </div>
   } @else {
     <!-- Single Editor Mode -->
     <div class="flex justify-between items-center p-2">
-      <span class="text-sm">{{ fileName || 'Code' }}</span>
+      <!-- Component selector dropdown -->
+      @if (generatedCode && generatedCode.components.length > 1) {
+        <div class="flex items-center gap-2">
+          <span class="text-sm">{{ fileName || 'Code' }}</span>
+          <mat-select 
+            [(ngModel)]="selectedComponentIndex" 
+            (selectionChange)="onComponentChange()"
+            aria-label="Select component"
+            class="component-select">
+            @for (component of generatedCode.components; track $index) {
+              <mat-option [value]="$index">
+                {{ component.componentName }}
+              </mat-option>
+            }
+          </mat-select>
+        </div>
+      } @else {
+        <span class="text-sm">{{ fileName || 'Code' }}</span>
+      }
+      
       <button 
         mat-icon-button 
         matTooltip="Copy code"
@@ -104,5 +140,21 @@
     clip: rect(0, 0, 0, 0);
     white-space: nowrap;
     border-width: 0;
+  }
+  
+  .component-select {
+    min-width: 200px;
+    margin-left: 8px;
+  }
+  
+  .editor-container {
+    height: 100%;
+    min-height: 300px;
+    width: 100%;
+  }
+  
+  .language-selector button.mat-primary {
+    font-weight: 500;
+    border-bottom: 2px solid currentColor;
   }
 </style> 

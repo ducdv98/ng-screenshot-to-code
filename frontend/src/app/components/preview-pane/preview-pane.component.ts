@@ -9,7 +9,7 @@ import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { FormsModule } from '@angular/forms';
 import { PreviewService } from '../../services/preview.service';
-import { GeneratedCode, GeneratedCodeV2 } from '../../models/generated-code.model';
+import { GeneratedCode } from '../../models/generated-code.model';
 
 @Component({
   selector: 'app-preview-pane',
@@ -29,8 +29,6 @@ import { GeneratedCode, GeneratedCodeV2 } from '../../models/generated-code.mode
 })
 export class PreviewPaneComponent implements OnChanges, OnDestroy {
   @Input() generatedCode: GeneratedCode | null = null;
-  @Input() generatedCodeV2: GeneratedCodeV2 | null = null;
-  @Input() isUsingV2Format = false;
   @ViewChild('previewFrame') previewFrame!: ElementRef<HTMLIFrameElement>;
   @ViewChild('codeSandboxContainer') codeSandboxContainer!: ElementRef<HTMLIFrameElement>;
   
@@ -69,20 +67,9 @@ export class PreviewPaneComponent implements OnChanges, OnDestroy {
   
   ngOnChanges(changes: SimpleChanges): void {
     // Reset retry count when new code is generated
-    if ((changes['generatedCodeV2'] && this.generatedCodeV2) || 
-        (changes['generatedCode'] && this.generatedCode)) {
+    if (changes['generatedCode'] && this.generatedCode) {
       this.retryCount = 0;
       this.errorMessage = '';
-    }
-    
-    // Check for V2 format first
-    if (changes['generatedCodeV2'] && this.generatedCodeV2) {
-      this.isUsingV2Format = true;
-      this.updatePreview();
-    } 
-    // Fall back to legacy format if no V2 but V1 changed
-    else if (changes['generatedCode'] && this.generatedCode) {
-      this.isUsingV2Format = false;
       this.updatePreview();
     }
   }
@@ -100,11 +87,8 @@ export class PreviewPaneComponent implements OnChanges, OnDestroy {
       // Reset error state
       this.previewError = false;
       
-      // Both formats now use the same direct preview approach
-      if (this.isUsingV2Format && this.generatedCodeV2) {
+      if (this.generatedCode) {
         this.updateDirectPreview();
-      } else if (this.generatedCode) {
-        this.updateIframePreview();
       } else {
         throw new Error('No generated code available');
       }
@@ -120,54 +104,14 @@ export class PreviewPaneComponent implements OnChanges, OnDestroy {
   }
   
   /**
-   * Update preview for V2 format using direct HTML
+   * Update preview using direct HTML
    */
   private updateDirectPreview(): void {
-    if (!this.generatedCodeV2) return;
+    if (!this.generatedCode) return;
     
     try {
-      // Get main component
-      const mainComponent = this.generatedCodeV2.components[0];
-      
-      // Generate HTML preview directly
-      const previewHtml = `
-        <!DOCTYPE html>
-        <html lang="en">
-        <head>
-          <meta charset="UTF-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>Component Preview - ${mainComponent.componentName}</title>
-          
-          <!-- Material Design Icons -->
-          <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
-          
-          <!-- Google Fonts - Roboto -->
-          <link href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap" rel="stylesheet">
-          
-          <!-- Tailwind CSS -->
-          <script src="https://cdn.tailwindcss.com"></script>
-          
-          <!-- Angular Material Theme -->
-          <link href="https://cdn.jsdelivr.net/npm/@angular/material@19.2.0/prebuilt-themes/indigo-pink.css" rel="stylesheet">
-          
-          <style>
-            body { 
-              margin: 0; 
-              font-family: Roboto, "Helvetica Neue", sans-serif; 
-              padding: 16px;
-              color: rgba(0, 0, 0, 0.87);
-              background: #fafafa;
-            }
-            ${mainComponent.scss}
-          </style>
-        </head>
-        <body class="mat-typography">
-          <div id="component-preview" class="mat-app-background">
-            ${mainComponent.html}
-          </div>
-        </body>
-        </html>
-      `;
+      // Use the preview service to generate HTML for the preview
+      const previewHtml = this.previewService.generatePreviewHtml(this.generatedCode);
       
       // Sanitize the HTML and use it for the iframe
       this.previewSrcDoc = this.sanitizer.bypassSecurityTrustHtml(previewHtml);
@@ -195,13 +139,8 @@ export class PreviewPaneComponent implements OnChanges, OnDestroy {
       console.log(`Retrying preview (${this.retryCount + 1}/${this.maxRetries})`);
       this.retryCount++;
       setTimeout(() => this.updatePreview(), 1000);
-    } else if (!this.isUsingV2Format && this.generatedCode) {
-      // Fall back to simple iframe preview for legacy format
-      console.log('Falling back to simple iframe preview');
-      this.useInteractivePreview = false;
-      this.updateIframePreview();
     } else {
-      // Show error if all retries failed and no fallback
+      // Show error if all retries failed
       this.previewError = true;
       this.errorMessage = `Failed to load preview: ${errorMessage}`;
       this.isPreviewLoading = false;
@@ -213,43 +152,6 @@ export class PreviewPaneComponent implements OnChanges, OnDestroy {
    */
   private toKebabCase(str: string): string {
     return str.replace(/([a-z0-9])([A-Z])/g, '$1-$2').toLowerCase();
-  }
-
-  /**
-   * Update the preview using iframe srcdoc (legacy approach)
-   */
-  private updateIframePreview(): void {
-    if (!this.generatedCode) return;
-    
-    // Generate HTML content for the iframe
-    const previewHtml = this.previewService.generatePreviewHtml(this.generatedCode);
-    
-    // Sanitize the HTML and bind to srcdoc
-    this.previewSrcDoc = this.sanitizer.bypassSecurityTrustHtml(previewHtml);
-    
-    // If direct DOM manipulation is needed (fallback)
-    if (this.previewFrame?.nativeElement) {
-      try {
-        const iframe = this.previewFrame.nativeElement;
-        const doc = iframe.contentDocument || iframe.contentWindow?.document;
-        
-        if (doc) {
-          doc.open();
-          doc.write(previewHtml);
-          doc.close();
-          
-          // Clear any error state
-          this.previewError = false;
-          this.errorMessage = '';
-          this.isPreviewLoading = false;
-        }
-      } catch (error) {
-        console.error('Error updating iframe preview:', error);
-        this.previewError = true;
-        this.errorMessage = error instanceof Error ? error.message : 'Error updating iframe preview';
-        this.isPreviewLoading = false;
-      }
-    }
   }
   
   /**
@@ -289,72 +191,34 @@ export class PreviewPaneComponent implements OnChanges, OnDestroy {
   }
   
   /**
-   * Open the preview in fullscreen/new tab
+   * Open the sandbox in a new window
    */
   openFullscreen(): void {
-    console.log('Opening fullscreen preview...');
-    
-    try {
-      let previewHtml: string;
-      
-      if (this.isUsingV2Format && this.generatedCodeV2) {
-        // For V2 format, use the first component
-        const mainComponent = this.generatedCodeV2.components[0];
-        
-        // Generate a standalone HTML page
-        previewHtml = `
-          <!DOCTYPE html>
-          <html lang="en">
-          <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Component Preview - ${mainComponent.componentName}</title>
-            
-            <!-- Material Design Icons -->
-            <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
-            
-            <!-- Google Fonts - Roboto -->
-            <link href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap" rel="stylesheet">
-            
-            <!-- Tailwind CSS -->
-            <script src="https://cdn.tailwindcss.com"></script>
-            
-            <!-- Angular Material Theme -->
-            <link href="https://cdn.jsdelivr.net/npm/@angular/material@19.2.0/prebuilt-themes/indigo-pink.css" rel="stylesheet">
-            
-            <style>
-              body { 
-                margin: 0; 
-                font-family: Roboto, "Helvetica Neue", sans-serif; 
-                padding: 16px;
-                color: rgba(0, 0, 0, 0.87);
-                background: #fafafa;
-              }
-              ${mainComponent.scss}
-            </style>
-          </head>
-          <body class="mat-typography">
-            <div id="component-preview" class="mat-app-background">
-              ${mainComponent.html}
-            </div>
-          </body>
-          </html>
-        `;
-      } else if (this.generatedCode) {
-        // For legacy format, use the generatePreviewHtml method
-        previewHtml = this.previewService.generatePreviewHtml(this.generatedCode);
-      } else {
-        throw new Error('No preview content available');
+    if (this.codeSandboxUrl) {
+      window.open(this.codeSandboxUrl, '_blank');
+    } else {
+      console.error('No CodeSandbox URL available');
+      // If no external URL is available, try to create one
+      try {
+        if (this.generatedCode) {
+          const params = this.previewService.prepareCodeSandboxParameters(this.generatedCode);
+          const url = `https://codesandbox.io/api/v1/sandboxes/define?parameters=${params}`;
+          window.open(url, '_blank');
+        }
+      } catch (error) {
+        console.error('Could not create CodeSandbox URL:', error);
+        this.errorMessage = 'Could not open fullscreen preview';
       }
-      
-      // Create a data URI from the HTML
-      const dataUri = `data:text/html;charset=utf-8,${encodeURIComponent(previewHtml)}`;
-      
-      // Open in a new tab
-      window.open(dataUri, '_blank');
-    } catch (error) {
-      console.error('Error opening fullscreen preview:', error);
-      alert('Could not open fullscreen preview. Please try again.');
     }
+  }
+  
+  /**
+   * Display error message in console and UI
+   */
+  private showError(message: string): void {
+    console.error(message);
+    this.previewError = true;
+    this.errorMessage = message;
+    this.isPreviewLoading = false;
   }
 } 

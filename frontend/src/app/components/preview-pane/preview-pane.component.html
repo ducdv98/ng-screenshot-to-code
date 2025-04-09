@@ -1,13 +1,12 @@
 <mat-card class="preview-container w-full h-full flex flex-col">
   <div class="preview-header flex justify-between items-center p-2 border-b">
     <div class="text-lg font-medium">
-      @if (generatedCodeV2) {
-        Live Preview: {{ generatedCodeV2.components[0].componentName }}
-        @if (generatedCodeV2.components.length > 1) {
-          <span class="text-sm ml-2 text-gray-500">(+{{ generatedCodeV2.components.length - 1 }} more components)</span>
+      @if (generatedCode) {
+        Live Preview: {{ generatedCode.components[0].componentName }}
+        @if (generatedCode.components.length > 1) {
+          <span class="text-sm ml-2 text-gray-500">(+{{ generatedCode.components.length - 1 }} more components)</span>
+          <span class="text-xs block text-blue-500 mt-1">View all components in the code editor</span>
         }
-      } @else if (generatedCode) {
-        Live Preview: {{ generatedCode.component_name }}
       } @else {
         Live Preview
       }
@@ -18,7 +17,7 @@
         class="mr-2" 
         [checked]="useInteractivePreview" 
         (change)="togglePreviewMode()"
-        [disabled]="!generatedCode || isUsingV2Format"
+        [disabled]="!generatedCode"
         color="primary">
         <span class="text-sm">Interactive</span>
       </mat-slide-toggle>
@@ -26,7 +25,7 @@
       <button 
         mat-icon-button 
         matTooltip="Refresh Preview"
-        [disabled]="!generatedCode && !generatedCodeV2"
+        [disabled]="!generatedCode"
         (click)="refreshPreview()">
         <mat-icon>refresh</mat-icon>
       </button>
@@ -34,7 +33,7 @@
       <button 
         mat-icon-button 
         matTooltip="View Fullscreen"
-        [disabled]="(!generatedCode && !generatedCodeV2) || previewError"
+        [disabled]="!generatedCode || previewError"
         (click)="openFullscreen()">
         <mat-icon>fullscreen</mat-icon>
       </button>
@@ -42,7 +41,7 @@
   </div>
   
   <div class="preview-content flex-grow">
-    @if ((generatedCode || generatedCodeV2) && !previewError) {
+    @if (generatedCode && !previewError) {
       <iframe 
         #previewFrame
         class="w-full h-full border-none"
