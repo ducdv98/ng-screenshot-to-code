@@ -11,4 +11,18 @@ export interface GeneratedCode {
 export interface AdditionalFile {
   path: string;
   content: string;
+}
+
+/**
+ * New interface for enhanced multi-component generation
+ */
+export interface GeneratedCodeV2 {
+  components: GeneratedComponent[];
+}
+
+export interface GeneratedComponent {
+  componentName: string;  // PascalCase component name
+  typescript: string;     // Component TS code
+  html: string;           // Component HTML template
+  scss: string;           // Component SCSS styles
 } 

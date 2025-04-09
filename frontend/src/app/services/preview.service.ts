@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { GeneratedCode } from '../models/generated-code.model';
+import { GeneratedCode, GeneratedCodeV2, GeneratedComponent } from '../models/generated-code.model';
 import { Project } from '@stackblitz/sdk';
 
 @Injectable({
@@ -152,6 +152,257 @@ export class PreviewService {
     `;
     
     return previewHtml;
+  }
+
+  /**
+   * Prepare a StackBlitz project with the new multi-component generated code format
+   */
+  prepareStackBlitzProjectV2(generatedCodeV2: GeneratedCodeV2): Project {
+    // Use specific versions that are known to work together
+    const angularVersion = '19.0.0'; // Use exact version for stability in StackBlitz
+    
+    // Get primary component (first in array) - this will be imported in app.component
+    const primaryComponent = generatedCodeV2.components[0];
+    const primaryComponentName = this.toKebabCase(primaryComponent.componentName);
+    
+    // Files structure for the project - simplified for StackBlitz
+    const files: Record<string, string> = {
+      'package.json': this.generateEnhancedPackageJson(),
+      'angular.json': this.generateEnhancedAngularJson(),
+      'tsconfig.json': this.generateSimplifiedTsConfig(),
+      'tailwind.config.js': this.generateTailwindConfig(),
+      'src/index.html': this.generateEnhancedIndexHtml(),
+      'src/styles.scss': this.generateEnhancedStyles(),
+      'src/main.ts': this.generateEnhancedMainTs(),
+      'src/app/app.config.ts': this.generateEnhancedAppConfig(),
+      'src/app/app.component.ts': this.generateEnhancedAppComponent(primaryComponent),
+      'src/app/app.component.html': this.generateEnhancedAppComponentTemplate(primaryComponent),
+      'src/app/app.component.scss': '/* app component styles */'
+    };
+
+    // Add each generated component to the files structure
+    for (const component of generatedCodeV2.components) {
+      const kebabCaseName = this.toKebabCase(component.componentName);
+      
+      // Add the component's three files to the project
+      files[`src/app/${kebabCaseName}/${kebabCaseName}.component.ts`] = component.typescript;
+      files[`src/app/${kebabCaseName}/${kebabCaseName}.component.html`] = component.html;
+      files[`src/app/${kebabCaseName}/${kebabCaseName}.component.scss`] = component.scss;
+    }
+
+    // Return the complete project configuration for StackBlitz
+    return {
+      title: 'Generated Angular Components',
+      description: 'Generated Angular components from screenshot-to-code',
+      template: 'angular-cli',
+      files: files
+    };
+  }
+
+  /**
+   * Generate enhanced package.json with Angular v19+ and Tailwind
+   */
+  private generateEnhancedPackageJson(): string {
+    const angularVersion = '19.0.0';
+    const materialVersion = '19.0.0';
+    
+    // A package.json with essential dependencies including Angular Material and Tailwind
+    const packageJson = {
+      name: 'generated-components-preview',
+      version: '0.0.0',
+      private: true,
+      dependencies: {
+        '@angular/animations': angularVersion,
+        '@angular/cdk': materialVersion,
+        '@angular/common': angularVersion,
+        '@angular/compiler': angularVersion,
+        '@angular/core': angularVersion,
+        '@angular/forms': angularVersion,
+        '@angular/material': materialVersion,
+        '@angular/platform-browser': angularVersion,
+        '@angular/platform-browser-dynamic': angularVersion,
+        '@angular/router': angularVersion,
+        'rxjs': '~7.8.0',
+        'tslib': '~2.3.0',
+        'zone.js': '~0.14.0'
+      },
+      devDependencies: {
+        'tailwindcss': '^3.3.0'
+      }
+    };
+    
+    return JSON.stringify(packageJson, null, 2);
+  }
+
+  /**
+   * Generate enhanced Angular JSON config
+   */
+  private generateEnhancedAngularJson(): string {
+    return JSON.stringify({
+      "$schema": "./node_modules/@angular/cli/lib/config/schema.json",
+      "version": 1,
+      "newProjectRoot": "projects",
+      "projects": {
+        "generated-components-preview": {
+          "projectType": "application",
+          "schematics": {
+            "@schematics/angular:component": {
+              "style": "scss",
+              "standalone": true
+            },
+            "@schematics/angular:directive": {
+              "standalone": true
+            },
+            "@schematics/angular:pipe": {
+              "standalone": true
+            }
+          },
+          "root": "",
+          "sourceRoot": "src",
+          "prefix": "app",
+          "architect": {
+            "build": {
+              "builder": "@angular-devkit/build-angular:application",
+              "options": {
+                "outputPath": "dist/generated-components-preview",
+                "index": "src/index.html",
+                "browser": "src/main.ts",
+                "polyfills": ["zone.js"],
+                "tsConfig": "tsconfig.json",
+                "inlineStyleLanguage": "scss",
+                "assets": ["src/favicon.ico", "src/assets"],
+                "styles": ["src/styles.scss"],
+                "scripts": []
+              }
+            }
+          }
+        }
+      }
+    }, null, 2);
+  }
+
+  /**
+   * Generate Tailwind configuration file
+   */
+  private generateTailwindConfig(): string {
+    return `/** @type {import('tailwindcss').Config} */
+module.exports = {
+  content: ["./src/**/*.{html,ts}"],
+  theme: {
+    extend: {},
+  },
+  plugins: [],
+};`;
+  }
+
+  /**
+   * Generate enhanced index.html with Typography class
+   */
+  private generateEnhancedIndexHtml(): string {
+    return `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Generated Components Preview</title>
+  <base href="/">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" type="image/x-icon" href="favicon.ico">
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+</head>
+<body class="mat-typography">
+  <app-root></app-root>
+</body>
+</html>`;
+  }
+
+  /**
+   * Generate enhanced styles.scss with Tailwind imports and Material theme
+   */
+  private generateEnhancedStyles(): string {
+    return `/* You can add global styles to this file, and also import other style files */
+@import '@angular/material/prebuilt-themes/indigo-pink.css';
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html, body { height: 100%; }
+body { margin: 0; font-family: Roboto, "Helvetica Neue", sans-serif; }`;
+  }
+
+  /**
+   * Generate enhanced main.ts for bootstrapping
+   */
+  private generateEnhancedMainTs(): string {
+    return `import { bootstrapApplication } from '@angular/platform-browser';
+import { appConfig } from './app/app.config';
+import { AppComponent } from './app/app.component';
+
+bootstrapApplication(AppComponent, appConfig)
+  .catch((err) => console.error(err));`;
+  }
+
+  /**
+   * Generate enhanced app.config.ts with provideAnimationsAsync
+   */
+  private generateEnhancedAppConfig(): string {
+    return `import { ApplicationConfig } from '@angular/core';
+import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
+
+export const appConfig: ApplicationConfig = {
+  providers: [
+    provideAnimationsAsync()
+  ]
+};`;
+  }
+
+  /**
+   * Generate enhanced app component that imports the primary generated component
+   */
+  private generateEnhancedAppComponent(primaryComponent: GeneratedComponent): string {
+    const kebabName = this.toKebabCase(primaryComponent.componentName);
+    const selectorName = `app-${kebabName}`;
+    
+    return `import { Component } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { ${primaryComponent.componentName}Component } from './${kebabName}/${kebabName}.component';
+
+@Component({
+  selector: 'app-root',
+  standalone: true,
+  imports: [CommonModule, ${primaryComponent.componentName}Component],
+  templateUrl: './app.component.html',
+  styleUrls: ['./app.component.scss']
+})
+export class AppComponent {
+  title = 'Generated Components Preview';
+}`;
+  }
+
+  /**
+   * Generate enhanced app component template that includes the primary component
+   */
+  private generateEnhancedAppComponentTemplate(primaryComponent: GeneratedComponent): string {
+    const kebabName = this.toKebabCase(primaryComponent.componentName);
+    const selectorName = `app-${kebabName}`;
+    
+    return `<div class="container mx-auto p-4">
+  <header class="mb-6">
+    <h1 class="text-2xl font-bold text-gray-800">Generated Components Preview</h1>
+    <p class="text-gray-600">Primary component: ${primaryComponent.componentName}</p>
+  </header>
+  
+  <main>
+    <${selectorName}></${selectorName}>
+  </main>
+</div>`;
+  }
+
+  /**
+   * Convert PascalCase to kebab-case
+   */
+  private toKebabCase(str: string): string {
+    return str.replace(/([a-z0-9])([A-Z])/g, '$1-$2').toLowerCase();
   }
 
   /**

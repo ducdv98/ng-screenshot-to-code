@@ -9,7 +9,7 @@ import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { FormsModule } from '@angular/forms';
 import { PreviewService } from '../../services/preview.service';
-import { GeneratedCode } from '../../models/generated-code.model';
+import { GeneratedCode, GeneratedCodeV2 } from '../../models/generated-code.model';
 import sdk, { Project, VM } from '@stackblitz/sdk';
 
 @Component({
@@ -30,6 +30,7 @@ import sdk, { Project, VM } from '@stackblitz/sdk';
 })
 export class PreviewPaneComponent implements OnChanges, OnDestroy {
   @Input() generatedCode: GeneratedCode | null = null;
+  @Input() generatedCodeV2: GeneratedCodeV2 | null = null;
   @ViewChild('previewFrame') previewFrame!: ElementRef<HTMLIFrameElement>;
   @ViewChild('stackblitzContainer') stackblitzContainer!: ElementRef<HTMLDivElement>;
   
@@ -42,7 +43,7 @@ export class PreviewPaneComponent implements OnChanges, OnDestroy {
   // Error tracking
   previewError = false;
 
-  // StackBlitz SDK mode toggle
+  // StackBlitz SDK mode toggle - always use StackBlitz for the enhanced version
   useStackBlitzSdk = true;
   
   // Loading state for StackBlitz SDK
@@ -53,6 +54,9 @@ export class PreviewPaneComponent implements OnChanges, OnDestroy {
   
   // URL for external StackBlitz project (used for fullscreen)
   private stackBlitzProjectUrl: string = '';
+
+  // Flag to track which version of generated code we are using
+  private isUsingV2Format = false;
   
   constructor(
     private sanitizer: DomSanitizer,
@@ -60,7 +64,14 @@ export class PreviewPaneComponent implements OnChanges, OnDestroy {
   ) {}
   
   ngOnChanges(changes: SimpleChanges): void {
-    if (changes['generatedCode'] && this.generatedCode) {
+    // Check for V2 format first
+    if (changes['generatedCodeV2'] && this.generatedCodeV2) {
+      this.isUsingV2Format = true;
+      this.updatePreview();
+    } 
+    // Fall back to legacy format if no V2 but V1 changed
+    else if (changes['generatedCode'] && this.generatedCode) {
+      this.isUsingV2Format = false;
       this.updatePreview();
     }
   }
@@ -77,16 +88,21 @@ export class PreviewPaneComponent implements OnChanges, OnDestroy {
   }
   
   private updatePreview(): void {
-    if (!this.generatedCode) return;
-    
     try {
       // Reset error state
       this.previewError = false;
       
-      if (this.useStackBlitzSdk) {
+      // For V2 format, always use StackBlitz SDK
+      if (this.isUsingV2Format) {
+        this.useStackBlitzSdk = true;
         this.updateStackBlitzPreview();
       } else {
-        this.updateIframePreview();
+        // Legacy format can toggle between iframe and StackBlitz
+        if (this.useStackBlitzSdk) {
+          this.updateStackBlitzPreview();
+        } else {
+          this.updateIframePreview();
+        }
       }
       
       // Mark preview as initialized
@@ -102,8 +118,6 @@ export class PreviewPaneComponent implements OnChanges, OnDestroy {
    * Update the preview using StackBlitz SDK
    */
   private updateStackBlitzPreview(): void {
-    if (!this.generatedCode) return;
-
     // Set loading state to true
     this.isStackBlitzLoading = true;
     
@@ -115,8 +129,25 @@ export class PreviewPaneComponent implements OnChanges, OnDestroy {
     
     setTimeout(() => {
       try {
-        // Create the project object using the service
-        const project: Project = this.previewService.prepareStackBlitzProject(this.generatedCode!);
+        // Create the project object using the appropriate service method
+        let project: Project;
+        let mainComponentFileName: string;
+        
+        if (this.isUsingV2Format && this.generatedCodeV2) {
+          // Use V2 format
+          project = this.previewService.prepareStackBlitzProjectV2(this.generatedCodeV2);
+          
+          // Get first component name for file opening
+          const primaryComponent = this.generatedCodeV2.components[0];
+          const kebabName = this.toKebabCase(primaryComponent.componentName);
+          mainComponentFileName = `src/app/${kebabName}/${kebabName}.component.html`;
+        } else if (this.generatedCode) {
+          // Use legacy format
+          project = this.previewService.prepareStackBlitzProject(this.generatedCode);
+          mainComponentFileName = `src/app/${this.generatedCode.component_name}/${this.generatedCode.component_name}.component.html`;
+        } else {
+          throw new Error('No generated code available');
+        }
         
         // Generate a unique project ID to avoid caching issues
         const projectId = `generated-component-${Date.now()}`;
@@ -126,7 +157,7 @@ export class PreviewPaneComponent implements OnChanges, OnDestroy {
           // On smaller screens, just open in a new tab
           sdk.openProject(project, { 
             newWindow: true,
-            openFile: `src/app/${this.generatedCode!.component_name}/${this.generatedCode!.component_name}.component.html` 
+            openFile: mainComponentFileName
           });
           
           // Set loading state to false since we're navigating away
@@ -138,7 +169,7 @@ export class PreviewPaneComponent implements OnChanges, OnDestroy {
             hideExplorer: true,
             hideNavigation: false,
             forceEmbedLayout: true,
-            openFile: `src/app/${this.generatedCode!.component_name}/${this.generatedCode!.component_name}.component.html`,
+            openFile: mainComponentFileName,
             view: 'preview',
             clickToLoad: false,
             terminalHeight: 40 // Add terminal height to allow package installation visibility
@@ -148,8 +179,7 @@ export class PreviewPaneComponent implements OnChanges, OnDestroy {
               
               // Try to create a link for fullscreen view
               try {
-                const componentName = this.generatedCode!.component_name;
-                this.stackBlitzProjectUrl = `https://stackblitz.com/edit?file=src/app/${componentName}/${componentName}.component.html`;
+                this.stackBlitzProjectUrl = `https://stackblitz.com/edit?file=${mainComponentFileName}`;
               } catch (error) {
                 console.error('Failed to create project URL:', error);
               }
@@ -172,6 +202,13 @@ export class PreviewPaneComponent implements OnChanges, OnDestroy {
         this.isStackBlitzLoading = false;
       }
     }, 0);
+  }
+  
+  /**
+   * Convert PascalCase to kebab-case (used for component file paths)
+   */
+  private toKebabCase(str: string): string {
+    return str.replace(/([a-z0-9])([A-Z])/g, '$1-$2').toLowerCase();
   }
 
   /**
@@ -225,8 +262,15 @@ export class PreviewPaneComponent implements OnChanges, OnDestroy {
 
   /**
    * Toggle preview mode between StackBlitz SDK and iframe
+   * Note: Always uses StackBlitz for V2 format
    */
   togglePreviewMode(): void {
+    // Don't allow toggling away from StackBlitz in V2 mode
+    if (this.isUsingV2Format) {
+      this.useStackBlitzSdk = true;
+      return;
+    }
+    
     this.useStackBlitzSdk = !this.useStackBlitzSdk;
     if (this.generatedCode) {
       this.updatePreview();
@@ -243,8 +287,18 @@ export class PreviewPaneComponent implements OnChanges, OnDestroy {
       if (this.stackBlitzProjectUrl) {
         window.open(this.stackBlitzProjectUrl, '_blank');
       } else {
-        // Fallback if we don't have a stored URL
-        window.open(`https://stackblitz.com/edit?file=src/app/${this.generatedCode!.component_name}/${this.generatedCode!.component_name}.component.html`, '_blank');
+        // Fallback using component name
+        let mainComponentPath = '';
+        
+        if (this.isUsingV2Format && this.generatedCodeV2?.components[0]) {
+          const primaryComponent = this.generatedCodeV2.components[0];
+          const kebabName = this.toKebabCase(primaryComponent.componentName);
+          mainComponentPath = `src/app/${kebabName}/${kebabName}.component.html`;
+        } else if (this.generatedCode) {
+          mainComponentPath = `src/app/${this.generatedCode.component_name}/${this.generatedCode.component_name}.component.html`;
+        }
+        
+        window.open(`https://stackblitz.com/edit?file=${mainComponentPath}`, '_blank');
       }
     } else if (!this.useStackBlitzSdk && this.previewFrame?.nativeElement) {
       const iframe = this.previewFrame.nativeElement;
