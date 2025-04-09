@@ -134,13 +134,19 @@ export class PreviewPaneComponent implements OnChanges, OnDestroy {
         let mainComponentFileName: string;
         
         if (this.isUsingV2Format && this.generatedCodeV2) {
-          // Use V2 format
+          // Use V2 format - enhanced multi-component support
           project = this.previewService.prepareStackBlitzProjectV2(this.generatedCodeV2);
           
           // Get first component name for file opening
           const primaryComponent = this.generatedCodeV2.components[0];
           const kebabName = this.toKebabCase(primaryComponent.componentName);
-          mainComponentFileName = `src/app/${kebabName}/${kebabName}.component.html`;
+          
+          // For multi-component projects, may want to show app.component first
+          if (this.generatedCodeV2.components.length > 1) {
+            mainComponentFileName = `src/app/app.component.ts`;
+          } else {
+            mainComponentFileName = `src/app/${kebabName}/${kebabName}.component.html`;
+          }
         } else if (this.generatedCode) {
           // Use legacy format
           project = this.previewService.prepareStackBlitzProject(this.generatedCode);
@@ -166,7 +172,7 @@ export class PreviewPaneComponent implements OnChanges, OnDestroy {
           // On larger screens, embed the project
           sdk.embedProject('stackblitz-preview-container', project, {
             height: 500,
-            hideExplorer: true,
+            hideExplorer: false,  // Show explorer for multi-component projects
             hideNavigation: false,
             forceEmbedLayout: true,
             openFile: mainComponentFileName,

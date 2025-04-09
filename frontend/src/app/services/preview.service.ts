@@ -184,10 +184,55 @@ export class PreviewService {
     for (const component of generatedCodeV2.components) {
       const kebabCaseName = this.toKebabCase(component.componentName);
       
-      // Add the component's three files to the project
-      files[`src/app/${kebabCaseName}/${kebabCaseName}.component.ts`] = component.typescript;
-      files[`src/app/${kebabCaseName}/${kebabCaseName}.component.html`] = component.html;
-      files[`src/app/${kebabCaseName}/${kebabCaseName}.component.scss`] = component.scss;
+      // Prepare component directory path
+      const componentDirPath = `src/app/${kebabCaseName}`;
+      
+      // Process the TypeScript file to ensure imports are correctly pointing to other components
+      let processedTypescript = component.typescript;
+      
+      // Check for references to other components and ensure correct import paths
+      // This is critical for parent-child component relationships
+      if (generatedCodeV2.components.length > 1) {
+        // For each component, check if it's referenced in the current component
+        for (const otherComponent of generatedCodeV2.components) {
+          if (otherComponent.componentName !== component.componentName) {
+            const otherKebabName = this.toKebabCase(otherComponent.componentName);
+            
+            // Look for import statements that might need correction
+            // Example pattern: `import { OtherComponent } from ...`
+            // We want to ensure they point to the correct relative path
+            const importRegex = new RegExp(`import\\s+{[^}]*${otherComponent.componentName}[^}]*}\\s+from\\s+['"]([^'"]+)['"]`, 'g');
+            const matches = [...processedTypescript.matchAll(importRegex)];
+            
+            if (matches.length === 0) {
+              // If no import found but component is used in template, add the import
+              const componentUsageRegex = new RegExp(`<\\s*${otherKebabName}\\b`, 'i');
+              if (componentUsageRegex.test(component.html)) {
+                // Add import if component is used but not imported
+                processedTypescript = `import { ${otherComponent.componentName} } from '../${otherKebabName}/${otherKebabName}.component';\n${processedTypescript}`;
+              }
+            } else {
+              // Replace existing import with correct relative path
+              for (const match of matches) {
+                const currentImportPath = match[1];
+                const correctImportPath = `../${otherKebabName}/${otherKebabName}.component`;
+                
+                if (currentImportPath !== correctImportPath) {
+                  processedTypescript = processedTypescript.replace(
+                    match[0],
+                    match[0].replace(currentImportPath, correctImportPath)
+                  );
+                }
+              }
+            }
+          }
+        }
+      }
+      
+      // Add the component's three files to the project with processed TypeScript
+      files[`${componentDirPath}/${kebabCaseName}.component.ts`] = processedTypescript;
+      files[`${componentDirPath}/${kebabCaseName}.component.html`] = component.html;
+      files[`${componentDirPath}/${kebabCaseName}.component.scss`] = component.scss;
     }
 
     // Return the complete project configuration for StackBlitz
@@ -357,45 +402,92 @@ export const appConfig: ApplicationConfig = {
   }
 
   /**
-   * Generate enhanced app component that imports the primary generated component
+   * Generate an enhanced app.component.ts that imports the primary component
    */
   private generateEnhancedAppComponent(primaryComponent: GeneratedComponent): string {
-    const kebabName = this.toKebabCase(primaryComponent.componentName);
-    const selectorName = `app-${kebabName}`;
+    const kebabCaseName = this.toKebabCase(primaryComponent.componentName);
     
     return `import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ${primaryComponent.componentName}Component } from './${kebabName}/${kebabName}.component';
+import { RouterOutlet } from '@angular/router';
+import { ${primaryComponent.componentName} } from './${kebabCaseName}/${kebabCaseName}.component';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule, ${primaryComponent.componentName}Component],
+  imports: [
+    CommonModule,
+    RouterOutlet,
+    ${primaryComponent.componentName}
+  ],
   templateUrl: './app.component.html',
   styleUrls: ['./app.component.scss']
 })
 export class AppComponent {
-  title = 'Generated Components Preview';
-}`;
+  title = 'Generated Component Preview';
+}
+`;
   }
 
   /**
-   * Generate enhanced app component template that includes the primary component
+   * Generate an enhanced app.component.html template that displays the primary component
    */
   private generateEnhancedAppComponentTemplate(primaryComponent: GeneratedComponent): string {
-    const kebabName = this.toKebabCase(primaryComponent.componentName);
-    const selectorName = `app-${kebabName}`;
+    const kebabCaseName = this.toKebabCase(primaryComponent.componentName);
+    const selectorName = `app-${kebabCaseName}`;
     
-    return `<div class="container mx-auto p-4">
-  <header class="mb-6">
-    <h1 class="text-2xl font-bold text-gray-800">Generated Components Preview</h1>
-    <p class="text-gray-600">Primary component: ${primaryComponent.componentName}</p>
+    return `<div class="app-container">
+  <header class="preview-header">
+    <h1>Generated Component Preview</h1>
   </header>
   
-  <main>
+  <main class="component-container">
     <${selectorName}></${selectorName}>
   </main>
-</div>`;
+  
+  <footer class="preview-footer">
+    <p>Generated with Angular Screenshot-to-Code</p>
+  </footer>
+</div>
+
+<style>
+  .app-container {
+    font-family: Roboto, "Helvetica Neue", sans-serif;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+  }
+  
+  .preview-header {
+    background-color: #3f51b5;
+    color: white;
+    padding: 12px 24px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  }
+  
+  .preview-header h1 {
+    margin: 0;
+    font-size: 1.5rem;
+    font-weight: 400;
+  }
+  
+  .component-container {
+    flex: 1;
+    padding: 24px;
+    max-width: 1200px;
+    margin: 0 auto;
+    width: 100%;
+  }
+  
+  .preview-footer {
+    background-color: #f5f5f5;
+    padding: 12px 24px;
+    text-align: center;
+    color: #666;
+    font-size: 0.875rem;
+  }
+</style>
+`;
   }
 
   /**
