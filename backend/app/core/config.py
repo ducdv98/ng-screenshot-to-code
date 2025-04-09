@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     # CORS settings
     ALLOWED_ORIGINS: List[str] = [
         "http://localhost:4200",  # Angular dev server
+        "http://localhost:4201",  # Angular dev server alternate port
         "http://localhost:8000",  # FastAPI dev server
     ]
     

@@ -166,21 +166,50 @@ export class GeneratorPageComponent {
    * Initiates download of the ZIP file using the browser's download mechanism
    */
   private downloadZipFile(blob: Blob): void {
-    // Create a blob URL for the ZIP file
-    const url = URL.createObjectURL(blob);
-    
-    // Create a temporary anchor element to trigger the download
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = 'generated_angular_project.zip';
-    
-    // Append to the document, trigger the download, and clean up
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    
-    // Revoke the blob URL to free up resources
-    setTimeout(() => URL.revokeObjectURL(url), 100);
+    try {
+      // Check if we received a valid blob
+      if (!blob) {
+        throw new Error('No data received from server');
+      }
+      
+      // Log information about the blob
+      console.log(`Received blob: type=${blob.type}, size=${blob.size} bytes`);
+      
+      // Ensure we have the correct MIME type
+      const zipBlob = blob.type === 'application/zip' ? blob : new Blob([blob], { type: 'application/zip' });
+      
+      // Create a URL for the blob
+      const url = URL.createObjectURL(zipBlob);
+      
+      // Create a file name with timestamp to prevent caching issues
+      const fileName = `generated_angular_project_${Date.now()}.zip`;
+      
+      // Create a link element to trigger the download
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = fileName;
+      link.setAttribute('download', fileName);
+      
+      // Append the link to the document body
+      document.body.appendChild(link);
+      
+      // Simulate a click on the link to trigger the download
+      link.click();
+      
+      // Clean up
+      document.body.removeChild(link);
+      
+      // Give the browser some time to start the download before revoking the URL
+      setTimeout(() => {
+        URL.revokeObjectURL(url);
+        console.log('Download URL revoked');
+      }, 2000);
+    } catch (error) {
+      console.error('Error downloading ZIP file:', error);
+      this.handleGenerationError({ 
+        message: 'Failed to download the ZIP file. Please try again.' 
+      }, 'download');
+    }
   }
   
   /**

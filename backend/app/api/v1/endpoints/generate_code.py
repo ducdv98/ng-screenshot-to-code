@@ -1,5 +1,6 @@
 from fastapi import APIRouter, UploadFile, File, HTTPException, Depends, Response
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, FileResponse
+from fastapi.background import BackgroundTasks
 from app.models.figma_input import FigmaInput
 from app.services.ai_service import AIService
 from app.services.code_generator import CodeGenerator
@@ -8,6 +9,9 @@ from app.services.packaging_service import PackagingService
 from app.services.figma_service import FigmaService
 from typing import Dict, Any, Optional
 import io
+import tempfile
+import os
+import logging
 
 router = APIRouter()
 
@@ -27,6 +31,8 @@ async def generate_project_from_image(
         raise HTTPException(status_code=400, detail="File must be an image")
     
     try:
+        logging.info(f"Processing image upload: {file.filename}")
+        
         # Process the image
         image_content = await file.read()
         
@@ -51,17 +57,30 @@ async def generate_project_from_image(
         
         # Assemble the project structure
         virtual_fs = project_assembler.assemble_project(components, routing)
+        logging.info(f"Project structure assembled with {len(virtual_fs)} files")
         
-        # Create a ZIP archive
-        zip_stream = packaging_service.create_zip_archive_with_stream(virtual_fs)
-        
-        # Return the ZIP as a downloadable file
-        return StreamingResponse(
-            iter([zip_stream.getvalue()]),
-            media_type="application/zip",
-            headers={"Content-Disposition": f"attachment; filename=generated_angular_project.zip"}
-        )
+        # Create the complete ZIP archive
+        try:
+            zip_bytes = packaging_service.create_zip_archive(virtual_fs)
+            logging.info(f"Successfully created ZIP archive, size: {len(zip_bytes)} bytes")
+            
+            # Set headers for browser download
+            headers = {
+                "Content-Disposition": f"attachment; filename=generated_angular_project.zip",
+                "Access-Control-Expose-Headers": "Content-Disposition"
+            }
+            
+            # Return the ZIP file as a direct response
+            return Response(
+                content=zip_bytes,
+                media_type="application/zip",
+                headers=headers
+            )
+        except Exception as e:
+            logging.error(f"Error creating ZIP archive: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Error creating ZIP archive: {str(e)}")
     except Exception as e:
+        logging.error(f"Error in generate_project_from_image: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error generating project: {str(e)}")
 
 @router.post("/figma")
@@ -76,6 +95,8 @@ async def generate_project_from_figma(
     Generate a complete Angular project from a Figma design URL and return it as a downloadable ZIP archive.
     """
     try:
+        logging.info(f"Processing Figma design: {figma_input.file_url}")
+        
         # Fetch Figma design data
         figma_data = await figma_service.fetch_figma_design(
             figma_input.file_url,
@@ -101,15 +122,28 @@ async def generate_project_from_figma(
         
         # Assemble the project structure
         virtual_fs = project_assembler.assemble_project(components, routing)
+        logging.info(f"Project structure assembled with {len(virtual_fs)} files")
         
-        # Create a ZIP archive
-        zip_stream = packaging_service.create_zip_archive_with_stream(virtual_fs)
-        
-        # Return the ZIP as a downloadable file
-        return StreamingResponse(
-            iter([zip_stream.getvalue()]),
-            media_type="application/zip",
-            headers={"Content-Disposition": f"attachment; filename=generated_angular_project.zip"}
-        )
+        # Create the complete ZIP archive
+        try:
+            zip_bytes = packaging_service.create_zip_archive(virtual_fs)
+            logging.info(f"Successfully created ZIP archive, size: {len(zip_bytes)} bytes")
+            
+            # Set headers for browser download
+            headers = {
+                "Content-Disposition": f"attachment; filename=generated_angular_project.zip",
+                "Access-Control-Expose-Headers": "Content-Disposition"
+            }
+            
+            # Return the ZIP file as a direct response
+            return Response(
+                content=zip_bytes,
+                media_type="application/zip",
+                headers=headers
+            )
+        except Exception as e:
+            logging.error(f"Error creating ZIP archive: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Error creating ZIP archive: {str(e)}")
     except Exception as e:
+        logging.error(f"Error in generate_project_from_figma: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error generating project: {str(e)}") 

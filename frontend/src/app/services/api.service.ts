@@ -4,6 +4,7 @@ import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
 import { GeneratedCode } from '../models/generated-code.model';
 import { FigmaInput } from '../models/api-request.model';
+import { map, catchError } from 'rxjs/operators';
 
 interface ColorHints {
   dominant?: string;
@@ -56,9 +57,19 @@ export class ApiService {
       formData.append('color_hints', JSON.stringify(colorHints));
     }
 
-    return this.http.post(`${this.apiUrl}/generate-image/`, formData, {
-      responseType: 'blob'
-    });
+    return this.http.post(`${this.apiUrl}/generate-code/image`, formData, {
+      responseType: 'blob',
+      observe: 'response'
+    }).pipe(
+      map(response => {
+        console.log('ZIP response headers:', response.headers);
+        return response.body as Blob;
+      }),
+      catchError(error => {
+        console.error('Error downloading ZIP:', error);
+        throw error;
+      })
+    );
   }
 
   /**
@@ -67,8 +78,18 @@ export class ApiService {
    * @returns Observable with Blob data of the zip file
    */
   generateProjectFromFigma(figmaInput: FigmaInput): Observable<Blob> {
-    return this.http.post(`${this.apiUrl}/generate-figma/`, figmaInput, {
-      responseType: 'blob'
-    });
+    return this.http.post(`${this.apiUrl}/generate-code/figma`, figmaInput, {
+      responseType: 'blob',
+      observe: 'response'
+    }).pipe(
+      map(response => {
+        console.log('ZIP response headers:', response.headers);
+        return response.body as Blob;
+      }),
+      catchError(error => {
+        console.error('Error downloading ZIP:', error);
+        throw error;
+      })
+    );
   }
 } 
